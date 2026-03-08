@@ -864,9 +864,9 @@ if (!config.productsUrl) config.productsUrl = URLS_PRECONFIGURED.productsUrl;
 let columns  = JSON.parse(localStorage.getItem('pos_cols')     || '{"codigo":1,"nombre":2,"descripcion":3,"precio":4,"stock":5,"otro":6}');
 let scanHistory = JSON.parse(localStorage.getItem('pos_history') || '[]');
 
-let currentUser  = null;   // { user, name, role }
+let currentUser  = null;
 let failedAttempts = 0;
-let blockUntil   = parseInt(localStorage.getItem('pos_blockUntil') || '0');
+let blockUntil   = 0;  // solo en memoria, NO en localStorage
 let blockInterval = null;
 
 let html5Scanner = null;
@@ -877,16 +877,10 @@ let scanCooldown = false;
 //  LOGIN
 // ══════════════════════════════════════════════════
 function checkBlock() {
-  const now = Date.now();
-  if (blockUntil > now) {
-    setBlocked(true);
-    startBlockCountdown();
-  } else if (blockUntil && blockUntil <= now) {
-    localStorage.removeItem('pos_blockUntil');
-    blockUntil = 0;
-    failedAttempts = 0;
-    setBlocked(false);
-  }
+  // Limpiar cualquier bloqueo antiguo guardado en localStorage
+  localStorage.removeItem('pos_blockUntil');
+  // El bloqueo ahora solo vive en memoria (se resetea al recargar la página)
+  setBlocked(false);
 }
 
 function setBlocked(v) {
@@ -905,7 +899,6 @@ function startBlockCountdown() {
       clearInterval(blockInterval);
       blockUntil = 0;
       failedAttempts = 0;
-      localStorage.removeItem('pos_blockUntil');
       setBlocked(false);
       updateDots();
       document.getElementById('blockTimer').textContent = '';
@@ -921,16 +914,23 @@ function startBlockCountdown() {
 function updateDots() {
   for (let i = 1; i <= 3; i++) {
     const d = document.getElementById('dot' + i);
-    d.className = 'attempt-dot' + (i <= failedAttempts ? ' used' : '');
+    if (d) d.className = 'attempt-dot' + (i <= failedAttempts ? ' used' : '');
   }
 }
 
-async function doLogin() {
-  if (document.getElementById('loginBtn').disabled) return;
+function doLogin() {
+  const btn    = document.getElementById('loginBtn');
+  const errEl  = document.getElementById('loginError');
 
-  const user = document.getElementById('inputUser').value.trim().toLowerCase();
-  const pass = document.getElementById('inputPass').value.trim();
-  const errEl = document.getElementById('loginError');
+  if (btn.disabled) return;
+
+  const user = (document.getElementById('inputUser').value || '').trim().toLowerCase();
+  const pass = (document.getElementById('inputPass').value || '').trim();
+
+  // Reset estilos
+  errEl.style.color = '';
+  errEl.style.background = '';
+  errEl.style.borderColor = '';
 
   if (!user || !pass) {
     errEl.textContent = 'Ingresa usuario y contraseña.';
@@ -938,74 +938,97 @@ async function doLogin() {
     return;
   }
 
-  if (!config.usersUrl) {
-    errEl.textContent = 'URL de usuarios no configurada. Contacta al administrador.';
-    errEl.className = 'login-error visible';
-    return;
-  }
-
-  document.getElementById('loginBtn').disabled = true;
-  document.getElementById('loginBtn').textContent = 'Conectando...';
-
-  // Mostrar estado visible para debug en móvil
-  errEl.textContent = '⏳ Conectando con el servidor...';
+  btn.disabled = true;
+  btn.textContent = 'Conectando...';
+  errEl.textContent = '⏳ Verificando...';
   errEl.style.color = 'var(--accent)';
   errEl.style.background = 'rgba(0,229,160,0.05)';
-  errEl.style.borderColor = 'rgba(0,229,160,0.2)';
+  errEl.style.borderColor = 'rgba(0,229,160,0.15)';
   errEl.className = 'login-error visible';
 
-  try {
-    const data = await fetchCSV(config.usersUrl);
-    const rows = data.slice(1); // skip header
+  // Usar XMLHttpRequest puro — máxima compatibilidad móvil
+  const url = URLS_PRECONFIGURED.usersUrl + '&_t=' + Date.now();
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 10000;
 
-    const match = rows.find(r => {
-      const u = String(r[0] || '').trim().toLowerCase();
-      const p = String(r[1] || '').trim();
-      return u === user && p === pass;
-    });
-
-    if (match) {
-      failedAttempts = 0;
-      updateDots();
-      currentUser = {
-        user: String(match[0]).trim(),
-        name: String(match[2] || match[0]).trim(),
-        role: String(match[3] || 'vendedor').trim().toLowerCase()
-      };
-      onLoginSuccess();
+  xhr.onload = function() {
+    if (xhr.status === 200 && xhr.responseText) {
+      procesarLogin(user, pass, xhr.responseText, errEl, btn);
     } else {
-      failedAttempts++;
-      updateDots();
-
-      document.getElementById('inputPass').value = '';
-      document.getElementById('inputPass').className = 'login-input error';
-      setTimeout(() => document.getElementById('inputPass').className = 'login-input', 1200);
-
-      if (failedAttempts >= 3) {
-        const BLOCK_MS = 5 * 60 * 1000; // 5 minutes
-        blockUntil = Date.now() + BLOCK_MS;
-        localStorage.setItem('pos_blockUntil', String(blockUntil));
-        setBlocked(true);
-        startBlockCountdown();
-      } else {
-        const left = 3 - failedAttempts;
-        errEl.style.color = '';
-        errEl.style.background = '';
-        errEl.style.borderColor = '';
-        errEl.textContent = `Usuario o contraseña incorrectos. Te quedan ${left} intento${left===1?'':'s'}.`;
-        errEl.className = 'login-error visible';
-      }
+      // Intentar con proxy
+      loginConProxy(user, pass, errEl, btn);
     }
-  } catch(e) {
-    errEl.style.color = '';
-    errEl.style.background = '';
-    errEl.style.borderColor = '';
-    errEl.textContent = 'Error de conexión: ' + e.message;
-    errEl.className = 'login-error visible';
-  }
+  };
+  xhr.onerror   = function() { loginConProxy(user, pass, errEl, btn); };
+  xhr.ontimeout = function() { loginConProxy(user, pass, errEl, btn); };
+  xhr.send();
+}
 
-  document.getElementById('loginBtn').disabled = false;
-  document.getElementById('loginBtn').textContent = 'Ingresar';
+function loginConProxy(user, pass, errEl, btn) {
+  const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(URLS_PRECONFIGURED.usersUrl);
+  const xhr2 = new XMLHttpRequest();
+  xhr2.open('GET', proxyUrl, true);
+  xhr2.timeout = 10000;
+
+  xhr2.onload = function() {
+    if (xhr2.status === 200 && xhr2.responseText) {
+      procesarLogin(user, pass, xhr2.responseText, errEl, btn);
+    } else {
+      mostrarErrorLogin('Sin conexión al servidor. Verifica tu internet.', errEl, btn);
+    }
+  };
+  xhr2.onerror   = function() { mostrarErrorLogin('Sin conexión. Verifica tu internet.', errEl, btn); };
+  xhr2.ontimeout = function() { mostrarErrorLogin('Tiempo de espera agotado. Intenta de nuevo.', errEl, btn); };
+  xhr2.send();
+}
+
+function procesarLogin(user, pass, csvText, errEl, btn) {
+  const rows = parseCSV(csvText).slice(1);
+  const match = rows.find(r => {
+    const u = String(r[0] || '').trim().toLowerCase();
+    const p = String(r[1] || '').trim();
+    return u === user && p === pass;
+  });
+
+  if (match) {
+    failedAttempts = 0;
+    updateDots();
+    currentUser = {
+      user: String(match[0]).trim(),
+      name: String(match[2] || match[0]).trim(),
+      role: String(match[3] || 'vendedor').trim().toLowerCase()
+    };
+    btn.disabled = false;
+    btn.textContent = 'Ingresar';
+    errEl.className = 'login-error';
+    onLoginSuccess();
+  } else {
+    failedAttempts++;
+    updateDots();
+    document.getElementById('inputPass').value = '';
+    document.getElementById('inputPass').className = 'login-input error';
+    setTimeout(() => document.getElementById('inputPass').className = 'login-input', 1200);
+
+    if (failedAttempts >= 3) {
+      blockUntil = Date.now() + (2 * 60 * 1000); // 2 minutos en memoria
+      setBlocked(true);
+      startBlockCountdown();
+    } else {
+      const left = 3 - failedAttempts;
+      mostrarErrorLogin(`Usuario o contraseña incorrectos. ${left} intento${left===1?'':'s'} restante${left===1?'':'s'}.`, errEl, btn);
+    }
+  }
+}
+
+function mostrarErrorLogin(msg, errEl, btn) {
+  errEl.style.color = '';
+  errEl.style.background = '';
+  errEl.style.borderColor = '';
+  errEl.textContent = msg;
+  errEl.className = 'login-error visible';
+  btn.disabled = false;
+  btn.textContent = 'Ingresar';
 }
 
 function onLoginSuccess() {
