@@ -561,7 +561,7 @@ select {
              onkeydown="if(event.key==='Enter')doLogin()">
     </div>
 
-    <button class="login-btn" id="loginBtn" onclick="doLogin()">Ingresar</button>
+    <button class="login-btn" id="loginBtn">Ingresar</button>
 
     <div class="login-setup-hint" id="setupHint" style="display:none;">
       ¿Primera vez? <a onclick="showSetupInfo()">Ver cómo configurar usuarios →</a>
@@ -872,17 +872,6 @@ let blockInterval = null;
 let html5Scanner = null;
 let isScanning   = false;
 let scanCooldown = false;
-
-// ══════════════════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded', () => {
-  loadConfigUI();
-  checkBlock();
-  // If first time setup URL was saved previously, pre-fill
-  if (config.usersUrl) document.getElementById('googleUrlUsers').value = config.usersUrl;
-  if (config.productsUrl) document.getElementById('googleUrlProducts').value = config.productsUrl;
-});
 
 // ══════════════════════════════════════════════════
 //  LOGIN
@@ -1532,10 +1521,35 @@ function exportarCSV() {
   showToast('✓ CSV exportado: ' + registros.length + ' registros', 'success');
 }
 
-// Render on load
+// ══════════════════════════════════════════════════
+//  LOGIN BUTTON — usar touchend + click para máxima
+//  compatibilidad en Android Chrome
+// ══════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('loginBtn');
+  if (btn) {
+    // touchend es más confiable que click en Android
+    btn.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      doLogin();
+    });
+    // click como respaldo para PC
+    btn.addEventListener('click', (e) => {
+      doLogin();
+    });
+  }
+
+  // Enter en campo contraseña
+  const passField = document.getElementById('inputPass');
+  if (passField) {
+    passField.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doLogin();
+    });
+  }
+
+  loadConfigUI();
+  checkBlock();
   renderRegistros();
-  // wire live preview after DOM ready
   ['regCodigo','regDescripcion','regItem'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', actualizarPreview);
