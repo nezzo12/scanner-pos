@@ -1000,7 +1000,7 @@ async function doLogin() {
       }
     }
   } catch(e) {
-    errEl.textContent = 'No se pudo verificar. Revisa la URL de usuarios.';
+    errEl.textContent = 'Error de conexión: ' + e.message + '. Verifica tu internet e intenta de nuevo.';
     errEl.className = 'login-error visible';
   }
 
@@ -1133,9 +1133,40 @@ async function buscarCodigo(code) {
 //  CSV FETCH & PARSE
 // ══════════════════════════════════════════════════
 async function fetchCSV(url) {
-  const res = await fetch(url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now());
-  if (!res.ok) throw new Error('No se pudo leer la hoja (' + res.status + ')');
-  return parseCSV(await res.text());
+  // Intentar fetch directo primero
+  try {
+    const res = await fetch(url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now(), {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-store'
+    });
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.length > 10) return parseCSV(text);
+    }
+  } catch(e) {
+    // Si falla, intenta con proxy
+  }
+
+  // Fallback: proxy CORS para móviles
+  const proxies = [
+    'https://corsproxy.io/?' + encodeURIComponent(url),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+  ];
+
+  for (const proxyUrl of proxies) {
+    try {
+      const res = await fetch(proxyUrl, { cache: 'no-store' });
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.length > 10) return parseCSV(text);
+      }
+    } catch(e) {
+      continue;
+    }
+  }
+
+  throw new Error('No se pudo conectar. Verifica tu internet.');
 }
 
 function parseCSV(text) {
