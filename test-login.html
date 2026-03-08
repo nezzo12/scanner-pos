@@ -90,18 +90,24 @@ function usarProxy(user, pass) {
 
 function verificar(user, pass, csv) {
   var lines = csv.split('\n');
-  log('Paso 3: CSV recibido. Filas: ' + lines.length, '#ffb347');
-
-  for (var i = 1; i < lines.length; i++) {
-    var cols = lines[i].split(',');
-    var u = (cols[0] || '').trim().toLowerCase().replace(/"/g,'');
-    var p = (cols[1] || '').trim().replace(/"/g,'');
-    if (u === user && p === pass) {
-      log('✅ LOGIN CORRECTO! Bienvenido: ' + (cols[2]||u).replace(/"/g,''), '#00e5a0');
-      return;
-    }
+  var debug = 'Filas: ' + lines.length + '\n';
+  for (var i = 0; i < Math.min(4, lines.length); i++) {
+    debug += 'Fila ' + i + ': [' + lines[i] + ']\n';
   }
-  log('❌ Usuario o contraseña incorrectos. User ingresado: [' + user + '] Pass: [' + pass + ']', '#ff4d6d');
+  log('CSV RAW:\n' + debug, '#ffb347');
+
+  setTimeout(function() {
+    for (var i = 1; i < lines.length; i++) {
+      var cols = lines[i].split(',');
+      var u = (cols[0] || '').trim().toLowerCase().replace(/"/g,'').replace(/\r/g,'');
+      var p = (cols[1] || '').trim().replace(/"/g,'').replace(/\r/g,'');
+      if (u === user && p === pass) {
+        log('✅ LOGIN CORRECTO! Bienvenido: ' + (cols[2]||u).replace(/"/g,''), '#00e5a0');
+        return;
+      }
+    }
+    log('❌ No coincide.\nUser: [' + user + ']\nPass: [' + pass + ']\nFila1 raw: [' + lines[1] + ']', '#ff4d6d');
+  }, 2000);
 }
 </script>
 </body>
