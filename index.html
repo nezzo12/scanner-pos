@@ -441,6 +441,69 @@ select {
 .toast.success { border-color:rgba(0,229,160,0.4); color:var(--accent); }
 .toast.error { border-color:rgba(255,77,109,0.4); color:var(--danger); }
 
+/* REGISTRO */
+.reg-scanner-area {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;
+  overflow:hidden;
+  position:relative;
+  margin-bottom:14px;
+  display:none;
+}
+#regreader { width:100%; }
+
+.reg-preview {
+  background: var(--surface2);
+  border: 1px solid rgba(0,229,160,0.2);
+  border-radius:16px;
+  padding:16px;
+  margin-top:14px;
+  animation: fadeUp 0.3s ease;
+}
+.reg-preview-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  padding:8px 0;
+  border-bottom:1px solid var(--border);
+}
+.reg-preview-label {
+  font-size:10px; color:var(--muted);
+  text-transform:uppercase; letter-spacing:1px;
+  white-space:nowrap; padding-top:2px;
+}
+.reg-preview-val {
+  font-size:13px; color:var(--text);
+  text-align:right; word-break:break-word;
+  max-width:65%;
+}
+
+.reg-item {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.reg-item-info { flex:1; min-width:0; }
+.reg-item-code { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; }
+.reg-item-desc { font-size:11px; color:var(--muted); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.reg-item-meta { font-size:10px; color:var(--muted); text-align:right; white-space:nowrap; }
+.reg-item-user { font-size:10px; color:var(--accent); text-align:right; margin-top:2px; }
+.reg-delete {
+  background:none; border:none;
+  color:var(--danger); font-size:16px;
+  cursor:pointer; padding:4px 6px;
+  border-radius:8px; transition:background 0.2s;
+  flex-shrink:0;
+}
+.reg-delete:active { background:rgba(255,77,109,0.1); }
+
 /* STATUS DOT */
 .status-dot { width:7px; height:7px; border-radius:50%; background:var(--muted); transition:all 0.3s; }
 .status-dot.connected { background:var(--accent); box-shadow:0 0 7px var(--accent); }
@@ -500,7 +563,7 @@ select {
 
     <button class="login-btn" id="loginBtn" onclick="doLogin()">Ingresar</button>
 
-    <div class="login-setup-hint" id="setupHint">
+    <div class="login-setup-hint" id="setupHint" style="display:none;">
       ¿Primera vez? <a onclick="showSetupInfo()">Ver cómo configurar usuarios →</a>
     </div>
   </div>
@@ -596,6 +659,85 @@ select {
     <div class="history-list" id="historyList"></div>
   </div>
 
+  <!-- SCREEN: REGISTRO -->
+  <div class="screen" id="screen-registro">
+    <div style="height:16px"></div>
+
+    <!-- Scanner de código para registro -->
+    <div class="reg-scanner-area" id="regScannerArea">
+      <div id="regreader"></div>
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <div class="corner-br"></div>
+          <div class="corner-bl"></div>
+          <div class="scan-line"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="config-section" style="margin-bottom:0">
+      <div class="config-title">➕ Nuevo Registro</div>
+
+      <!-- Campo 1: Código de barras -->
+      <div class="config-field">
+        <div class="config-label">① Código de barras</div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="regCodigo" placeholder="Escanea o escribe el código"
+                 style="flex:1;font-size:14px;">
+          <button class="btn secondary" id="regScanBtn" onclick="toggleRegScanner()"
+                  style="padding:14px 14px;font-size:18px;" title="Escanear">📷</button>
+        </div>
+      </div>
+
+      <!-- Campo 2: Descripción -->
+      <div class="config-field">
+        <div class="config-label">② Descripción</div>
+        <textarea id="regDescripcion" placeholder="Escribe una descripción del producto..."
+          style="width:100%;background:var(--surface2);border:1px solid var(--border);
+                 border-radius:12px;padding:14px 16px;color:var(--text);
+                 font-family:'DM Mono',monospace;font-size:14px;outline:none;
+                 resize:none;min-height:80px;line-height:1.5;
+                 transition:border-color 0.2s;"
+          onfocus="this.style.borderColor='var(--accent)'"
+          onblur="this.style.borderColor='var(--border)'"></textarea>
+      </div>
+
+      <!-- Campo 3: Ítem -->
+      <div class="config-field" style="margin-bottom:0">
+        <div class="config-label">③ Ítem (nombre del producto)</div>
+        <input type="text" id="regItem" placeholder="Nombre del producto">
+      </div>
+    </div>
+
+    <!-- Preview card -->
+    <div class="reg-preview" id="regPreview" style="display:none">
+      <div class="reg-preview-row"><span class="reg-preview-label">Código</span><span class="reg-preview-val" id="prevCodigo">—</span></div>
+      <div class="reg-preview-row"><span class="reg-preview-label">Descripción</span><span class="reg-preview-val" id="prevDesc">—</span></div>
+      <div class="reg-preview-row"><span class="reg-preview-label">Ítem</span><span class="reg-preview-val" id="prevItem">—</span></div>
+      <div class="reg-preview-row"><span class="reg-preview-label">Usuario</span><span class="reg-preview-val" id="prevUser">—</span></div>
+      <div class="reg-preview-row" style="border:none"><span class="reg-preview-label">Fecha/Hora</span><span class="reg-preview-val" id="prevFecha">—</span></div>
+    </div>
+
+    <!-- Botones -->
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
+      <button class="btn btn-full" onclick="guardarRegistro()">💾 Guardar registro</button>
+      <button class="btn secondary btn-full" onclick="limpiarFormReg()">↺ Limpiar</button>
+    </div>
+
+    <!-- Lista de registros pendientes -->
+    <div style="margin-top:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;">
+          Registros guardados <span id="regCount" style="color:var(--accent);font-size:12px;"></span>
+        </span>
+        <button class="btn secondary" style="padding:8px 14px;font-size:11px;" onclick="exportarCSV()">
+          ⬇ Exportar CSV
+        </button>
+      </div>
+      <div id="regList" class="history-list"></div>
+    </div>
+  </div>
+
   <!-- SCREEN: CONFIG (admin only) -->
   <div class="screen" id="screen-config">
     <div style="height:16px"></div>
@@ -669,14 +811,20 @@ select {
 </div><!-- /app -->
 
 <!-- BOTTOM NAV -->
-<nav class="bottom-nav">
+<nav class="bottom-nav" style="grid-template-columns:1fr 1fr 1fr 1fr;">
   <button class="nav-btn active" id="nav-scan" onclick="showScreen('scan')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
       <rect x="3" y="14" width="7" height="7" rx="1"/>
       <path d="M14 14h2v2h-2zM18 14h3M14 18h2M18 18v3M18 18h1"/>
     </svg>
-    Escanear
+    Buscar
+  </button>
+  <button class="nav-btn" id="nav-registro" onclick="showScreen('registro')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+    Registrar
   </button>
   <button class="nav-btn" id="nav-history" onclick="showScreen('history')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -704,6 +852,15 @@ select {
 //  STATE
 // ══════════════════════════════════════════════════
 let config   = JSON.parse(localStorage.getItem('pos_config')   || '{}');
+
+// URLs pre-configuradas — no requieren configuración manual
+const URLS_PRECONFIGURED = {
+  usersUrl:    'https://docs.google.com/spreadsheets/d/e/2PACX-1vRzUOunw18bewpoYcMaz_FhfOX9yw9EkDjpLAUNU2CwpwVzcncFevzMrElZ9Jnk_Fg3E6r6hZHZNZlH/pub?gid=0&single=true&output=csv',
+  productsUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRzUOunw18bewpoYcMaz_FhfOX9yw9EkDjpLAUNU2CwpwVzcncFevzMrElZ9Jnk_Fg3E6r6hZHZNZlH/pub?gid=841008816&single=true&output=csv'
+};
+// Siempre usar URLs pre-configuradas como base
+if (!config.usersUrl)    config.usersUrl    = URLS_PRECONFIGURED.usersUrl;
+if (!config.productsUrl) config.productsUrl = URLS_PRECONFIGURED.productsUrl;
 let columns  = JSON.parse(localStorage.getItem('pos_cols')     || '{"codigo":1,"nombre":2,"descripcion":3,"precio":4,"stock":5,"otro":6}');
 let scanHistory = JSON.parse(localStorage.getItem('pos_history') || '[]');
 
@@ -909,7 +1066,9 @@ function showScreen(name) {
   document.getElementById('screen-' + name).classList.add('active');
   document.getElementById('nav-' + name).classList.add('active');
   if (name !== 'scan' && isScanning) stopScanner();
+  if (name !== 'registro' && isRegScanning) stopRegScanner();
   if (name === 'history') renderHistory();
+  if (name === 'registro') renderRegistros();
 }
 
 // ══════════════════════════════════════════════════
@@ -1155,6 +1314,195 @@ function showToast(msg,type){
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.className='toast',2800);
 }
-</script>
+// ══════════════════════════════════════════════════
+//  REGISTRO MODULE
+// ══════════════════════════════════════════════════
+let registros = JSON.parse(localStorage.getItem('pos_registros') || '[]');
+let regScanner = null;
+let isRegScanning = false;
+let regScanCooldown = false;
+
+function toggleRegScanner() {
+  if (isRegScanning) {
+    stopRegScanner();
+  } else {
+    startRegScanner();
+  }
+}
+
+function startRegScanner() {
+  document.getElementById('regScannerArea').style.display = 'block';
+  document.getElementById('regScanBtn').textContent = '✕';
+
+  regScanner = new Html5Qrcode("regreader");
+  regScanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 220, height: 110 }, aspectRatio: 1.5 },
+    (decoded) => {
+      if (regScanCooldown) return;
+      regScanCooldown = true;
+      setTimeout(() => regScanCooldown = false, 2000);
+      document.getElementById('regCodigo').value = decoded;
+      stopRegScanner();
+      actualizarPreview();
+      showToast('✓ Código escaneado', 'success');
+      document.getElementById('regDescripcion').focus();
+    },
+    () => {}
+  ).catch(() => showToast('No se pudo acceder a la cámara', 'error'));
+  isRegScanning = true;
+}
+
+function stopRegScanner() {
+  if (regScanner && isRegScanning) {
+    regScanner.stop().catch(() => {});
+    isRegScanning = false;
+  }
+  document.getElementById('regScannerArea').style.display = 'none';
+  document.getElementById('regScanBtn').textContent = '📷';
+}
+
+function actualizarPreview() {
+  const codigo = document.getElementById('regCodigo').value.trim();
+  const desc   = document.getElementById('regDescripcion').value.trim();
+  const item   = document.getElementById('regItem').value.trim();
+
+  if (!codigo && !desc && !item) {
+    document.getElementById('regPreview').style.display = 'none';
+    return;
+  }
+
+  const ahora = new Date();
+  const fecha = ahora.toLocaleDateString('es-MX') + ' ' + ahora.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+
+  document.getElementById('prevCodigo').textContent = codigo || '—';
+  document.getElementById('prevDesc').textContent   = desc   || '—';
+  document.getElementById('prevItem').textContent   = item   || '—';
+  document.getElementById('prevUser').textContent   = currentUser?.name || '—';
+  document.getElementById('prevFecha').textContent  = fecha;
+  document.getElementById('regPreview').style.display = 'block';
+}
+
+// Live preview on typing
+['regCodigo','regDescripcion','regItem'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', actualizarPreview);
+});
+
+function guardarRegistro() {
+  const codigo = document.getElementById('regCodigo').value.trim();
+  const desc   = document.getElementById('regDescripcion').value.trim();
+  const item   = document.getElementById('regItem').value.trim();
+
+  if (!codigo) { showToast('El código de barras es obligatorio', 'error'); return; }
+  if (!item)   { showToast('El ítem es obligatorio', 'error'); return; }
+
+  const ahora = new Date();
+  const registro = {
+    id: Date.now(),
+    codigo,
+    descripcion: desc,
+    item,
+    usuario: currentUser?.name || '—',
+    fecha: ahora.toLocaleDateString('es-MX'),
+    hora:  ahora.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'}),
+  };
+
+  registros.unshift(registro);
+  localStorage.setItem('pos_registros', JSON.stringify(registros));
+
+  limpiarFormReg();
+  renderRegistros();
+  showToast('✓ Registro guardado', 'success');
+}
+
+function limpiarFormReg() {
+  document.getElementById('regCodigo').value = '';
+  document.getElementById('regDescripcion').value = '';
+  document.getElementById('regItem').value = '';
+  document.getElementById('regPreview').style.display = 'none';
+  if (isRegScanning) stopRegScanner();
+}
+
+function renderRegistros() {
+  const list = document.getElementById('regList');
+  const count = document.getElementById('regCount');
+  count.textContent = registros.length ? '(' + registros.length + ')' : '';
+
+  if (!registros.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📦</div>
+      <div class="empty-text">Aún no hay registros.<br>Completa el formulario y guarda.</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = registros.map((r, i) => `
+    <div class="reg-item">
+      <div class="reg-item-info">
+        <div class="reg-item-code">${r.item}</div>
+        <div class="reg-item-desc">${r.codigo} · ${r.descripcion || 'Sin descripción'}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div class="reg-item-meta">${r.fecha} ${r.hora}</div>
+        <div class="reg-item-user">${r.usuario}</div>
+      </div>
+      <button class="reg-delete" onclick="eliminarRegistro(${i})" title="Eliminar">✕</button>
+    </div>
+  `).join('');
+}
+
+function eliminarRegistro(i) {
+  if (!confirm('¿Eliminar este registro?')) return;
+  registros.splice(i, 1);
+  localStorage.setItem('pos_registros', JSON.stringify(registros));
+  renderRegistros();
+  showToast('Registro eliminado', '');
+}
+
+function exportarCSV() {
+  if (!registros.length) { showToast('No hay registros para exportar', 'error'); return; }
+
+  const encabezado = ['Código de barras', 'Descripción', 'Ítem', 'Usuario', 'Fecha', 'Hora'];
+  const filas = registros.map(r => [
+    '"' + (r.codigo      || '').replace(/"/g, '""') + '"',
+    '"' + (r.descripcion || '').replace(/"/g, '""') + '"',
+    '"' + (r.item        || '').replace(/"/g, '""') + '"',
+    '"' + (r.usuario     || '').replace(/"/g, '""') + '"',
+    '"' + (r.fecha       || '').replace(/"/g, '""') + '"',
+    '"' + (r.hora        || '').replace(/"/g, '""') + '"',
+  ].join(','));
+
+  const csv = '\uFEFF' + encabezado.join(',') + '\n' + filas.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+
+  const ahora = new Date();
+  const nombreArchivo = 'registros_' +
+    ahora.getFullYear() +
+    String(ahora.getMonth()+1).padStart(2,'0') +
+    String(ahora.getDate()).padStart(2,'0') + '_' +
+    String(ahora.getHours()).padStart(2,'0') +
+    String(ahora.getMinutes()).padStart(2,'0') +
+    '.csv';
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombreArchivo;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast('✓ CSV exportado: ' + registros.length + ' registros', 'success');
+}
+
+// Render on load
+window.addEventListener('DOMContentLoaded', () => {
+  renderRegistros();
+  // wire live preview after DOM ready
+  ['regCodigo','regDescripcion','regItem'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', actualizarPreview);
+  });
+});
+
 </body>
 </html>
