@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>EscanerPOS</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root {
+  --bg: #080810;
+  --surface: #10101c;
+  --surface2: #18182a;
+  --border: #25253a;
+  --accent: #00e5a0;
+  --accent2: #7c5cfc;
+  --danger: #ff4d6d;
+  --warn: #ffb347;
+  --text: #eeeeff;
+  --muted: #5a5a7a;
+  --glow: 0 0 40px rgba(0,229,160,0.1);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,160,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,160,0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events:none; z-index:0;
+}
+
+/* ── LOGIN SCREEN ───────────────────────────────── */
+#loginScreen {
+  position: fixed; inset:0; z-index:999;
+  display: flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding: 32px 24px;
+  background: var(--bg);
+}
+
+.login-glow {
+  position:absolute;
+  width:320px; height:320px;
+  background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%);
+  top:50%; left:50%;
+  transform: translate(-50%,-60%);
+  pointer-events:none;
+}
+
+.login-logo {
+  font-family:'Syne',sans-serif;
+  font-size:32px; font-weight:800;
+  letter-spacing:-1px;
+  margin-bottom: 6px;
+  position:relative; z-index:1;
+}
+.login-logo span { color: var(--accent); }
+
+.login-sub {
+  font-size:11px; color:var(--muted);
+  letter-spacing:2px; text-transform:uppercase;
+  margin-bottom:40px;
+  position:relative; z-index:1;
+}
+
+.login-card {
+  width:100%; max-width:360px;
+  background: var(--surface);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:28px 24px;
+  position:relative; z-index:1;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+}
+
+.login-field {
+  margin-bottom:16px;
+}
+
+.login-label {
+  font-size:10px; color:var(--muted);
+  letter-spacing:1.5px; text-transform:uppercase;
+  margin-bottom:8px; display:block;
+}
+
+.login-input {
+  width:100%;
+  background: var(--surface2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px 16px;
+  color:var(--text);
+  font-family:'DM Mono',monospace;
+  font-size:15px;
+  outline:none;
+  transition:border-color 0.2s, box-shadow 0.2s;
+  letter-spacing:0.5px;
+}
+.login-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,229,160,0.1);
+}
+.login-input.error { border-color: var(--danger); }
+
+.login-btn {
+  width:100%;
+  background: var(--accent);
+  color:#000;
+  border:none; border-radius:12px;
+  padding:16px;
+  font-family:'Syne',sans-serif;
+  font-weight:700; font-size:14px;
+  letter-spacing:1px; text-transform:uppercase;
+  cursor:pointer;
+  transition:all 0.2s;
+  margin-top:8px;
+}
+.login-btn:active { transform:scale(0.98); }
+.login-btn:disabled {
+  background: var(--muted);
+  cursor:not-allowed;
+  color: #333;
+}
+
+.login-error {
+  background: rgba(255,77,109,0.1);
+  border:1px solid rgba(255,77,109,0.25);
+  border-radius:10px;
+  padding:12px 14px;
+  font-size:12px;
+  color: var(--danger);
+  margin-bottom:16px;
+  display:none;
+  line-height:1.5;
+}
+.login-error.visible { display:block; }
+
+.login-blocked {
+  background: rgba(255,179,71,0.1);
+  border:1px solid rgba(255,179,71,0.25);
+  border-radius:10px;
+  padding:14px;
+  font-size:12px;
+  color: var(--warn);
+  text-align:center;
+  line-height:1.6;
+  display:none;
+}
+.login-blocked.visible { display:block; }
+
+.attempts-dots {
+  display:flex; gap:6px; justify-content:center;
+  margin-bottom:18px;
+}
+.attempt-dot {
+  width:8px; height:8px;
+  border-radius:50%;
+  background: var(--border);
+  transition:all 0.3s;
+}
+.attempt-dot.used { background: var(--danger); box-shadow:0 0 6px var(--danger); }
+
+.login-setup-hint {
+  margin-top:20px;
+  font-size:11px;
+  color: var(--muted);
+  text-align:center;
+  line-height:1.6;
+}
+.login-setup-hint a {
+  color:var(--accent); text-decoration:none;
+  cursor:pointer;
+}
+
+/* ── MAIN APP ────────────────────────────────────── */
+#mainApp { display:none; position:relative; z-index:1; }
+
+.header {
+  padding:18px 20px 14px;
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid var(--border);
+  background:rgba(8,8,16,0.85);
+  backdrop-filter:blur(20px);
+  position:sticky; top:0; z-index:100;
+}
+
+.logo {
+  font-family:'Syne',sans-serif;
+  font-weight:800; font-size:18px; letter-spacing:-0.5px;
+}
+.logo span { color:var(--accent); }
+
+.user-chip {
+  display:flex; align-items:center; gap:8px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:6px 12px 6px 8px;
+  cursor:pointer;
+  transition:border-color 0.2s;
+}
+.user-chip:active { border-color:var(--danger); }
+.user-avatar {
+  width:24px; height:24px; border-radius:50%;
+  background:linear-gradient(135deg, var(--accent2), var(--accent));
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:#fff;
+  font-family:'Syne',sans-serif;
+}
+.user-name { font-size:12px; font-family:'Syne',sans-serif; font-weight:600; }
+.logout-icon { font-size:12px; color:var(--muted); }
+
+/* SCREENS */
+.app { max-width:480px; margin:0 auto; padding:0 0 110px; min-height:100dvh; }
+.screen { display:none; padding:20px; }
+.screen.active { display:block; }
+
+/* SCANNER */
+.scanner-area {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px;
+  overflow:hidden;
+  position:relative;
+  margin-bottom:16px;
+  display:none;
+}
+#reader { width:100%; }
+
+.scan-overlay {
+  position:absolute; inset:0;
+  pointer-events:none;
+  display:flex; align-items:center; justify-content:center;
+}
+.scan-frame {
+  width:210px; height:120px; position:relative;
+}
+.scan-frame::before,.scan-frame::after,.corner-br,.corner-bl {
+  content:''; position:absolute;
+  width:22px; height:22px;
+  border-color:var(--accent); border-style:solid; opacity:0.9;
+}
+.scan-frame::before { top:0;left:0; border-width:2px 0 0 2px; border-radius:4px 0 0 0; }
+.scan-frame::after  { top:0;right:0; border-width:2px 2px 0 0; border-radius:0 4px 0 0; }
+.corner-br { bottom:0;right:0; border-width:0 2px 2px 0; border-radius:0 0 4px 0; }
+.corner-bl { bottom:0;left:0; border-width:0 0 2px 2px; border-radius:0 0 0 4px; }
+.scan-line {
+  position:absolute; left:0;right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  animation:scanline 2s ease-in-out infinite; top:50%;
+}
+@keyframes scanline {
+  0%  { transform:translateY(-40px); opacity:0; }
+  20% { opacity:1; }
+  80% { opacity:1; }
+  100%{ transform:translateY(40px); opacity:0; }
+}
+
+.scanner-controls { display:flex; gap:10px; margin-bottom:14px; }
+
+.scan-hint { text-align:center; font-size:11px; color:var(--muted); letter-spacing:0.5px; margin-bottom:14px; }
+
+.manual-row { display:flex; gap:10px; margin-bottom:20px; }
+.input-wrap { flex:1; }
+
+input[type="text"] {
+  width:100%;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px 16px;
+  color:var(--text);
+  font-family:'DM Mono',monospace;
+  font-size:14px;
+  outline:none;
+  transition:border-color 0.2s;
+}
+input[type="text"]:focus { border-color:var(--accent); }
+input[type="text"]::placeholder { color:var(--muted); }
+
+.btn {
+  background:var(--accent); color:#000;
+  border:none; border-radius:12px;
+  padding:14px 20px;
+  font-family:'Syne',sans-serif; font-weight:700;
+  font-size:13px; letter-spacing:0.5px;
+  cursor:pointer; transition:all 0.2s; white-space:nowrap;
+}
+.btn:active { transform:scale(0.97); }
+.btn.secondary { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+.btn-full { width:100%; }
+
+/* RESULT */
+.result-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:20px; padding:22px;
+  animation:fadeUp 0.3s ease; display:none;
+}
+.result-card.visible { display:block; }
+.result-card.found { border-color:rgba(0,229,160,0.3); box-shadow:var(--glow); }
+.result-card.not-found { border-color:rgba(255,77,109,0.25); }
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(14px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.result-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:10px; font-weight:500;
+  letter-spacing:1.5px; text-transform:uppercase;
+  padding:4px 10px; border-radius:20px; margin-bottom:14px;
+}
+.result-badge.found  { background:rgba(0,229,160,0.1); color:var(--accent); }
+.result-badge.not-found { background:rgba(255,77,109,0.1); color:var(--danger); }
+
+.result-code { font-size:11px; color:var(--muted); margin-bottom:6px; }
+.result-name {
+  font-family:'Syne',sans-serif; font-size:20px; font-weight:700;
+  line-height:1.2; margin-bottom:16px;
+}
+.result-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.result-field { background:var(--surface2); border-radius:12px; padding:12px 14px; }
+.result-field.full { grid-column:1/-1; }
+.field-label { font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+.field-value { font-size:14px; color:var(--text); font-weight:500; }
+.field-value.price { font-family:'Syne',sans-serif; font-size:20px; font-weight:700; color:var(--accent); }
+
+/* LOADING */
+.loading { display:none; text-align:center; padding:28px; }
+.loading.visible { display:block; }
+.spinner {
+  width:34px; height:34px;
+  border:2px solid var(--border);
+  border-top-color:var(--accent);
+  border-radius:50%;
+  animation:spin 0.7s linear infinite;
+  margin:0 auto 12px;
+}
+@keyframes spin { to{transform:rotate(360deg);} }
+.loading-text { font-size:12px; color:var(--muted); }
+
+/* HISTORY */
+.history-list { display:flex; flex-direction:column; gap:10px; }
+.history-item {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:14px 16px;
+  display:flex; align-items:center; justify-content:space-between;
+  cursor:pointer; transition:border-color 0.2s;
+}
+.history-item:active { border-color:var(--accent); }
+.history-name { font-family:'Syne',sans-serif; font-size:14px; font-weight:600; }
+.history-code { font-size:11px; color:var(--muted); margin-top:2px; }
+.history-time { font-size:10px; color:var(--muted); text-align:right; }
+.history-user { font-size:10px; color:var(--accent); text-align:right; margin-top:2px; }
+
+.empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+.empty-icon { font-size:40px; margin-bottom:12px; opacity:0.4; }
+.empty-text { font-size:13px; line-height:1.6; }
+
+/* CONFIG */
+.config-section {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:20px; margin-bottom:16px;
+}
+.config-title {
+  font-family:'Syne',sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--accent); margin-bottom:14px;
+}
+.config-label { font-size:10px; color:var(--muted); letter-spacing:0.5px; margin-bottom:6px; text-transform:uppercase; }
+.config-field { margin-bottom:14px; }
+
+select {
+  width:100%; background:var(--surface2);
+  border:1px solid var(--border); border-radius:10px;
+  padding:12px 14px; color:var(--text);
+  font-family:'DM Mono',monospace; font-size:13px;
+  outline:none; appearance:none; cursor:pointer;
+}
+
+.info-box {
+  background:rgba(0,229,160,0.04);
+  border:1px solid rgba(0,229,160,0.12);
+  border-radius:12px; padding:14px;
+  font-size:12px; line-height:1.8; color:var(--muted);
+  margin-bottom:14px;
+}
+.info-box strong { color:var(--accent); }
+
+.col-mapping { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* BOTTOM NAV */
+.bottom-nav {
+  position:fixed; bottom:0; left:0; right:0;
+  max-width:480px; margin:0 auto;
+  background:rgba(8,8,16,0.95);
+  backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  padding:8px 0 max(8px,env(safe-area-inset-bottom));
+  z-index:200;
+}
+.nav-btn {
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:8px; cursor:pointer;
+  color:var(--muted); transition:color 0.2s;
+  border:none; background:none;
+  font-family:'Syne',sans-serif; font-size:10px;
+  font-weight:600; letter-spacing:0.5px; text-transform:uppercase;
+}
+.nav-btn.active { color:var(--accent); }
+.nav-btn svg { width:20px; height:20px; }
+
+/* TOAST */
+.toast {
+  position:fixed; bottom:100px; left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:30px; padding:10px 20px;
+  font-size:13px; opacity:0;
+  transition:all 0.3s; z-index:9999;
+  white-space:nowrap; pointer-events:none;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+.toast.success { border-color:rgba(0,229,160,0.4); color:var(--accent); }
+.toast.error { border-color:rgba(255,77,109,0.4); color:var(--danger); }
+
+/* STATUS DOT */
+.status-dot { width:7px; height:7px; border-radius:50%; background:var(--muted); transition:all 0.3s; }
+.status-dot.connected { background:var(--accent); box-shadow:0 0 7px var(--accent); }
+.status-dot.error { background:var(--danger); box-shadow:0 0 7px var(--danger); }
+
+/* ROLE BADGE */
+.role-badge {
+  display:inline-block;
+  font-size:9px; letter-spacing:1px; text-transform:uppercase;
+  padding:2px 8px; border-radius:10px;
+  background:rgba(124,92,252,0.15); color:var(--accent2);
+  margin-left:6px;
+}
+.role-badge.admin { background:rgba(0,229,160,0.12); color:var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-glow"></div>
+  <div class="login-logo">Escaner<span>POS</span></div>
+  <div class="login-sub">Punto de venta · Acceso seguro</div>
+
+  <div class="login-card" id="loginCard">
+
+    <!-- Error message -->
+    <div class="login-error" id="loginError"></div>
+
+    <!-- Blocked message -->
+    <div class="login-blocked" id="loginBlocked">
+      🔒 Cuenta bloqueada temporalmente<br>
+      <strong id="blockTimer"></strong>
+    </div>
+
+    <!-- Attempt dots -->
+    <div class="attempts-dots" id="attemptDots">
+      <div class="attempt-dot" id="dot1"></div>
+      <div class="attempt-dot" id="dot2"></div>
+      <div class="attempt-dot" id="dot3"></div>
+    </div>
+
+    <div class="login-field" id="fieldUser">
+      <label class="login-label">Usuario</label>
+      <input type="text" class="login-input" id="inputUser" placeholder="tu_usuario"
+             autocomplete="username" autocapitalize="none" autocorrect="off">
+    </div>
+
+    <div class="login-field" id="fieldPass">
+      <label class="login-label">Contraseña</label>
+      <input type="password" class="login-input" id="inputPass" placeholder="••••••••"
+             autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Ingresar</button>
+
+    <div class="login-setup-hint" id="setupHint">
+      ¿Primera vez? <a onclick="showSetupInfo()">Ver cómo configurar usuarios →</a>
+    </div>
+  </div>
+
+  <!-- Setup info panel (hidden by default) -->
+  <div id="setupPanel" style="display:none;width:100%;max-width:360px;margin-top:16px;">
+    <div class="info-box" style="font-size:12px;">
+      <strong>📋 Hoja de usuarios en Google Sheets:</strong><br><br>
+      Crea una hoja llamada <strong>"Usuarios"</strong> con estas columnas:<br><br>
+      <strong>A</strong> → usuario (ej: juan)<br>
+      <strong>B</strong> → contraseña (ej: pass123)<br>
+      <strong>C</strong> → nombre completo (ej: Juan Pérez)<br>
+      <strong>D</strong> → rol (admin / vendedor)<br><br>
+      Publica esa hoja como CSV y pega su URL en Configuración.
+    </div>
+    <div style="margin-top:12px;text-align:center;">
+      <input type="text" id="firstTimeUrl" placeholder="URL de Google Sheets (usuarios)" 
+             style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;width:100%;outline:none;margin-bottom:10px;">
+      <button class="btn btn-full" onclick="saveFirstTimeConfig()">Guardar URL y continuar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════ -->
+<div id="mainApp">
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">Escaner<span>POS</span></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="status-dot" id="statusDot"></div>
+      <div class="user-chip" onclick="confirmLogout()">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-name" id="userNameChip">—</div>
+        <div class="logout-icon">⏏</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: SCAN -->
+  <div class="screen active" id="screen-scan">
+    <div style="height:16px"></div>
+
+    <div class="scanner-area" id="scannerArea">
+      <div id="reader"></div>
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <div class="corner-br"></div>
+          <div class="corner-bl"></div>
+          <div class="scan-line"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scanner-controls">
+      <button class="btn btn-full" id="btnStart" onclick="startScanner()">📷 Abrir cámara</button>
+      <button class="btn secondary" id="btnStop" onclick="stopScanner()" style="display:none">✕ Cerrar</button>
+    </div>
+
+    <p class="scan-hint">O ingresa el código manualmente</p>
+
+    <div class="manual-row">
+      <div class="input-wrap">
+        <input type="text" id="manualInput" placeholder="Ej: 7501234567890"
+               onkeydown="if(event.key==='Enter')buscarCodigo()">
+      </div>
+      <button class="btn" onclick="buscarCodigo()">Buscar</button>
+    </div>
+
+    <div class="loading" id="loadingDiv">
+      <div class="spinner"></div>
+      <div class="loading-text">Buscando producto...</div>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="result-badge" id="resultBadge"></div>
+      <div class="result-code" id="resultCode"></div>
+      <div class="result-name" id="resultName"></div>
+      <div class="result-grid" id="resultGrid"></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: HISTORY -->
+  <div class="screen" id="screen-history">
+    <div style="height:16px"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:16px;">Historial</span>
+      <button class="btn secondary" style="padding:8px 14px;font-size:11px;" onclick="clearHistory()">Limpiar</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <!-- SCREEN: CONFIG (admin only) -->
+  <div class="screen" id="screen-config">
+    <div style="height:16px"></div>
+
+    <div id="adminOnlyMsg" style="display:none">
+      <div class="info-box" style="border-color:rgba(255,77,109,0.2);background:rgba(255,77,109,0.05);color:var(--danger);">
+        🔒 Solo los administradores pueden modificar la configuración.
+      </div>
+    </div>
+
+    <div id="adminConfig">
+      <div class="config-section">
+        <div class="config-title">🔗 URLs de Google Sheets</div>
+
+        <div class="config-field">
+          <div class="config-label">URL de Productos (CSV)</div>
+          <input type="text" id="googleUrlProducts" placeholder="https://docs.google.com/..." style="font-size:12px;">
+        </div>
+
+        <div class="config-field">
+          <div class="config-label">URL de Usuarios (CSV)</div>
+          <input type="text" id="googleUrlUsers" placeholder="https://docs.google.com/..." style="font-size:12px;">
+        </div>
+
+        <div class="info-box">
+          <strong>Estructura hoja Productos:</strong> Código | Nombre | Descripción | Precio | Stock | Otro<br><br>
+          <strong>Estructura hoja Usuarios:</strong> usuario | contraseña | nombre | rol (admin/vendedor)
+        </div>
+
+        <button class="btn btn-full" onclick="saveConfig()">💾 Guardar</button>
+      </div>
+
+      <div class="config-section">
+        <div class="config-title">📋 Columnas de productos</div>
+        <div class="col-mapping">
+          <div class="config-field">
+            <div class="config-label">Código</div>
+            <input type="text" id="colCodigo" value="1" style="text-align:center;">
+          </div>
+          <div class="config-field">
+            <div class="config-label">Nombre</div>
+            <input type="text" id="colNombre" value="2" style="text-align:center;">
+          </div>
+          <div class="config-field">
+            <div class="config-label">Descripción</div>
+            <input type="text" id="colDescripcion" value="3" style="text-align:center;">
+          </div>
+          <div class="config-field">
+            <div class="config-label">Precio</div>
+            <input type="text" id="colPrecio" value="4" style="text-align:center;">
+          </div>
+          <div class="config-field">
+            <div class="config-label">Stock</div>
+            <input type="text" id="colStock" value="5" style="text-align:center;">
+          </div>
+          <div class="config-field">
+            <div class="config-label">Otro dato</div>
+            <input type="text" id="colOtro" value="6" style="text-align:center;">
+          </div>
+        </div>
+        <button class="btn btn-full secondary" onclick="saveColumns()">Guardar columnas</button>
+      </div>
+
+      <div class="config-section">
+        <div class="config-title">🧪 Probar conexión</div>
+        <button class="btn btn-full secondary" onclick="testConnection()">Probar ahora</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-scan" onclick="showScreen('scan')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/>
+      <path d="M14 14h2v2h-2zM18 14h3M14 18h2M18 18v3M18 18h1"/>
+    </svg>
+    Escanear
+  </button>
+  <button class="nav-btn" id="nav-history" onclick="showScreen('history')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/>
+    </svg>
+    Historial
+  </button>
+  <button class="nav-btn" id="nav-config" onclick="showScreen('config')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+      <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
+    </svg>
+    Config
+  </button>
+</nav>
+
+</div><!-- /mainApp -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════
+let config   = JSON.parse(localStorage.getItem('pos_config')   || '{}');
+let columns  = JSON.parse(localStorage.getItem('pos_cols')     || '{"codigo":1,"nombre":2,"descripcion":3,"precio":4,"stock":5,"otro":6}');
+let scanHistory = JSON.parse(localStorage.getItem('pos_history') || '[]');
+
+let currentUser  = null;   // { user, name, role }
+let failedAttempts = 0;
+let blockUntil   = parseInt(localStorage.getItem('pos_blockUntil') || '0');
+let blockInterval = null;
+
+let html5Scanner = null;
+let isScanning   = false;
+let scanCooldown = false;
+
+// ══════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  loadConfigUI();
+  checkBlock();
+  // If first time setup URL was saved previously, pre-fill
+  if (config.usersUrl) document.getElementById('googleUrlUsers').value = config.usersUrl;
+  if (config.productsUrl) document.getElementById('googleUrlProducts').value = config.productsUrl;
+});
+
+// ══════════════════════════════════════════════════
+//  LOGIN
+// ══════════════════════════════════════════════════
+function checkBlock() {
+  const now = Date.now();
+  if (blockUntil > now) {
+    setBlocked(true);
+    startBlockCountdown();
+  } else if (blockUntil && blockUntil <= now) {
+    localStorage.removeItem('pos_blockUntil');
+    blockUntil = 0;
+    failedAttempts = 0;
+    setBlocked(false);
+  }
+}
+
+function setBlocked(v) {
+  document.getElementById('loginBlocked').className = 'login-blocked' + (v ? ' visible' : '');
+  document.getElementById('loginError').className   = 'login-error';
+  document.getElementById('fieldUser').style.opacity = v ? '0.3' : '1';
+  document.getElementById('fieldPass').style.opacity = v ? '0.3' : '1';
+  document.getElementById('loginBtn').disabled = v;
+}
+
+function startBlockCountdown() {
+  clearInterval(blockInterval);
+  blockInterval = setInterval(() => {
+    const remaining = Math.ceil((blockUntil - Date.now()) / 1000);
+    if (remaining <= 0) {
+      clearInterval(blockInterval);
+      blockUntil = 0;
+      failedAttempts = 0;
+      localStorage.removeItem('pos_blockUntil');
+      setBlocked(false);
+      updateDots();
+      document.getElementById('blockTimer').textContent = '';
+    } else {
+      const m = Math.floor(remaining / 60);
+      const s = remaining % 60;
+      document.getElementById('blockTimer').textContent =
+        `Intenta de nuevo en ${m > 0 ? m + 'm ' : ''}${s}s`;
+    }
+  }, 500);
+}
+
+function updateDots() {
+  for (let i = 1; i <= 3; i++) {
+    const d = document.getElementById('dot' + i);
+    d.className = 'attempt-dot' + (i <= failedAttempts ? ' used' : '');
+  }
+}
+
+async function doLogin() {
+  if (document.getElementById('loginBtn').disabled) return;
+
+  const user = document.getElementById('inputUser').value.trim().toLowerCase();
+  const pass = document.getElementById('inputPass').value.trim();
+  const errEl = document.getElementById('loginError');
+
+  if (!user || !pass) {
+    errEl.textContent = 'Ingresa usuario y contraseña.';
+    errEl.className = 'login-error visible';
+    return;
+  }
+
+  if (!config.usersUrl) {
+    errEl.textContent = 'Primero configura la URL de usuarios.';
+    errEl.className = 'login-error visible';
+    showSetupInfo();
+    return;
+  }
+
+  document.getElementById('loginBtn').disabled = true;
+  document.getElementById('loginBtn').textContent = 'Verificando...';
+  errEl.className = 'login-error';
+
+  try {
+    const data = await fetchCSV(config.usersUrl);
+    const rows = data.slice(1); // skip header
+
+    const match = rows.find(r => {
+      const u = String(r[0] || '').trim().toLowerCase();
+      const p = String(r[1] || '').trim();
+      return u === user && p === pass;
+    });
+
+    if (match) {
+      failedAttempts = 0;
+      updateDots();
+      currentUser = {
+        user: String(match[0]).trim(),
+        name: String(match[2] || match[0]).trim(),
+        role: String(match[3] || 'vendedor').trim().toLowerCase()
+      };
+      onLoginSuccess();
+    } else {
+      failedAttempts++;
+      updateDots();
+
+      document.getElementById('inputPass').value = '';
+      document.getElementById('inputPass').className = 'login-input error';
+      setTimeout(() => document.getElementById('inputPass').className = 'login-input', 1200);
+
+      if (failedAttempts >= 3) {
+        const BLOCK_MS = 5 * 60 * 1000; // 5 minutes
+        blockUntil = Date.now() + BLOCK_MS;
+        localStorage.setItem('pos_blockUntil', String(blockUntil));
+        setBlocked(true);
+        startBlockCountdown();
+      } else {
+        const left = 3 - failedAttempts;
+        errEl.textContent = `Usuario o contraseña incorrectos. Te quedan ${left} intento${left===1?'':'s'}.`;
+        errEl.className = 'login-error visible';
+      }
+    }
+  } catch(e) {
+    errEl.textContent = 'No se pudo verificar. Revisa la URL de usuarios.';
+    errEl.className = 'login-error visible';
+  }
+
+  document.getElementById('loginBtn').disabled = false;
+  document.getElementById('loginBtn').textContent = 'Ingresar';
+}
+
+function onLoginSuccess() {
+  // Update header
+  document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('userNameChip').textContent = currentUser.name;
+
+  // Show/hide config for non-admins
+  const isAdmin = currentUser.role === 'admin';
+  document.getElementById('adminConfig').style.display   = isAdmin ? 'block' : 'none';
+  document.getElementById('adminOnlyMsg').style.display  = isAdmin ? 'none'  : 'block';
+
+  // Hide login, show app
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display     = 'block';
+
+  updateStatus();
+  renderHistory();
+  showToast('Bienvenido, ' + currentUser.name + ' 👋', 'success');
+}
+
+function confirmLogout() {
+  if (confirm('¿Cerrar sesión?')) doLogout();
+}
+
+function doLogout() {
+  if (isScanning) stopScanner();
+  currentUser = null;
+  document.getElementById('inputUser').value = '';
+  document.getElementById('inputPass').value = '';
+  document.getElementById('loginError').className = 'login-error';
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  hideResult();
+}
+
+function showSetupInfo() {
+  const p = document.getElementById('setupPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveFirstTimeConfig() {
+  const url = document.getElementById('firstTimeUrl').value.trim();
+  if (!url) { showToast('Ingresa la URL', 'error'); return; }
+  config.usersUrl = url;
+  localStorage.setItem('pos_config', JSON.stringify(config));
+  document.getElementById('googleUrlUsers').value = url;
+  document.getElementById('setupPanel').style.display = 'none';
+  showToast('✓ URL guardada. Ahora ingresa tus credenciales.', 'success');
+}
+
+// ══════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name !== 'scan' && isScanning) stopScanner();
+  if (name === 'history') renderHistory();
+}
+
+// ══════════════════════════════════════════════════
+//  SCANNER
+// ══════════════════════════════════════════════════
+function startScanner() {
+  if (!config.productsUrl) { showToast('Configura la URL de productos primero', 'error'); showScreen('config'); return; }
+  document.getElementById('scannerArea').style.display = 'block';
+  document.getElementById('btnStart').style.display = 'none';
+  document.getElementById('btnStop').style.display  = 'flex';
+
+  html5Scanner = new Html5Qrcode("reader");
+  html5Scanner.start(
+    { facingMode:"environment" },
+    { fps:10, qrbox:{width:220,height:110}, aspectRatio:1.5 },
+    (decoded) => {
+      if (scanCooldown) return;
+      scanCooldown = true;
+      setTimeout(() => scanCooldown = false, 2500);
+      document.getElementById('manualInput').value = decoded;
+      buscarCodigo(decoded);
+    },
+    () => {}
+  ).catch(() => showToast('No se pudo acceder a la cámara', 'error'));
+  isScanning = true;
+}
+
+function stopScanner() {
+  if (html5Scanner && isScanning) { html5Scanner.stop().catch(()=>{}); isScanning = false; }
+  document.getElementById('scannerArea').style.display = 'none';
+  document.getElementById('btnStart').style.display = 'flex';
+  document.getElementById('btnStop').style.display  = 'none';
+}
+
+// ══════════════════════════════════════════════════
+//  PRODUCT SEARCH
+// ══════════════════════════════════════════════════
+async function buscarCodigo(code) {
+  const input = code || document.getElementById('manualInput').value.trim();
+  if (!input) { showToast('Ingresa un código', 'error'); return; }
+  if (!config.productsUrl) { showToast('Configura la URL de productos primero', 'error'); return; }
+
+  hideResult();
+  showLoading(true);
+
+  try {
+    const data = await fetchCSV(config.productsUrl);
+    showLoading(false);
+    const col = columns;
+    const rows = data.slice(1);
+    const row  = rows.find(r => String(r[(col.codigo||1)-1]||'').trim() === String(input).trim());
+
+    if (row) { showResult(input, row, true); addToHistory(input, row); }
+    else      { showResult(input, null, false); }
+  } catch(e) {
+    showLoading(false);
+    showToast('Error al conectar: ' + e.message, 'error');
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  CSV FETCH & PARSE
+// ══════════════════════════════════════════════════
+async function fetchCSV(url) {
+  const res = await fetch(url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now());
+  if (!res.ok) throw new Error('No se pudo leer la hoja (' + res.status + ')');
+  return parseCSV(await res.text());
+}
+
+function parseCSV(text) {
+  return text.split('\n').filter(l=>l.trim()).map(line => {
+    const cells=[]; let cur='', inQ=false;
+    for(const ch of line){
+      if(ch==='"'){inQ=!inQ;}
+      else if(ch===','&&!inQ){cells.push(cur.trim());cur='';}
+      else{cur+=ch;}
+    }
+    cells.push(cur.trim());
+    return cells;
+  });
+}
+
+// ══════════════════════════════════════════════════
+//  DISPLAY RESULT
+// ══════════════════════════════════════════════════
+function showResult(code, row, found) {
+  const card=document.getElementById('resultCard');
+  const badge=document.getElementById('resultBadge');
+  card.className='result-card visible '+(found?'found':'not-found');
+  badge.className='result-badge '+(found?'found':'not-found');
+
+  if(found){
+    const col=columns;
+    const nombre=row[(col.nombre||2)-1]||'—';
+    const desc  =row[(col.descripcion||3)-1]||'—';
+    const precio=row[(col.precio||4)-1]||'—';
+    const stock =row[(col.stock||5)-1]||'—';
+    const otro  =row[(col.otro||6)-1]||'—';
+    badge.innerHTML='✓ Producto encontrado';
+    document.getElementById('resultCode').textContent='# '+code;
+    document.getElementById('resultName').textContent=nombre;
+    document.getElementById('resultGrid').innerHTML=`
+      <div class="result-field">
+        <div class="field-label">Precio</div>
+        <div class="field-value price">${precio!=='—'?'$'+precio:'—'}</div>
+      </div>
+      <div class="result-field">
+        <div class="field-label">Stock</div>
+        <div class="field-value">${stock}</div>
+      </div>
+      <div class="result-field full">
+        <div class="field-label">Descripción</div>
+        <div class="field-value">${desc}</div>
+      </div>
+      ${otro!=='—'?`<div class="result-field full"><div class="field-label">Otros datos</div><div class="field-value">${otro}</div></div>`:''}
+    `;
+  } else {
+    badge.innerHTML='✕ No encontrado';
+    document.getElementById('resultCode').textContent='# '+code;
+    document.getElementById('resultName').textContent='Producto no registrado';
+    document.getElementById('resultGrid').innerHTML=`
+      <div class="result-field full">
+        <div class="field-label">Sugerencia</div>
+        <div class="field-value" style="color:var(--muted);font-size:13px;">Verifica que el código esté en tu tabla.</div>
+      </div>`;
+  }
+}
+
+function hideResult()  { document.getElementById('resultCard').className='result-card'; }
+function showLoading(v){ document.getElementById('loadingDiv').className='loading'+(v?' visible':''); }
+
+// ══════════════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════════════
+function addToHistory(code, row) {
+  const col=columns;
+  const nombre=row[(col.nombre||2)-1]||'Desconocido';
+  const precio=row[(col.precio||4)-1]||'';
+  const now=new Date();
+  const time=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  scanHistory.unshift({ code, nombre, precio, time, user: currentUser?.name||'—', row });
+  if(scanHistory.length>60) scanHistory.pop();
+  localStorage.setItem('pos_history', JSON.stringify(scanHistory));
+}
+
+function renderHistory() {
+  const list=document.getElementById('historyList');
+  if(!scanHistory.length){
+    list.innerHTML=`<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Aún no hay escaneos registrados.</div></div>`;
+    return;
+  }
+  list.innerHTML=scanHistory.map((h,i)=>`
+    <div class="history-item" onclick="showHistoryItem(${i})">
+      <div>
+        <div class="history-name">${h.nombre}</div>
+        <div class="history-code">${h.code}${h.precio?' · $'+h.precio:''}</div>
+      </div>
+      <div>
+        <div class="history-time">${h.time}</div>
+        <div class="history-user">${h.user}</div>
+      </div>
+    </div>`).join('');
+}
+
+function showHistoryItem(i) {
+  const h=scanHistory[i];
+  document.getElementById('manualInput').value=h.code;
+  showScreen('scan');
+  showResult(h.code, h.row, true);
+}
+
+function clearHistory() {
+  if(!confirm('¿Limpiar todo el historial?')) return;
+  scanHistory=[];
+  localStorage.setItem('pos_history','[]');
+  renderHistory();
+  showToast('Historial limpiado','success');
+}
+
+// ══════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════
+function loadConfigUI() {
+  if(config.productsUrl) document.getElementById('googleUrlProducts').value=config.productsUrl;
+  if(config.usersUrl)    document.getElementById('googleUrlUsers').value=config.usersUrl;
+  if(columns.codigo)     document.getElementById('colCodigo').value=columns.codigo;
+  if(columns.nombre)     document.getElementById('colNombre').value=columns.nombre;
+  if(columns.descripcion)document.getElementById('colDescripcion').value=columns.descripcion;
+  if(columns.precio)     document.getElementById('colPrecio').value=columns.precio;
+  if(columns.stock)      document.getElementById('colStock').value=columns.stock;
+  if(columns.otro)       document.getElementById('colOtro').value=columns.otro;
+}
+
+function saveConfig() {
+  config.productsUrl = document.getElementById('googleUrlProducts').value.trim();
+  config.usersUrl    = document.getElementById('googleUrlUsers').value.trim();
+  localStorage.setItem('pos_config', JSON.stringify(config));
+  updateStatus();
+  showToast('✓ Configuración guardada','success');
+}
+
+function saveColumns() {
+  columns={
+    codigo:      parseInt(document.getElementById('colCodigo').value)||1,
+    nombre:      parseInt(document.getElementById('colNombre').value)||2,
+    descripcion: parseInt(document.getElementById('colDescripcion').value)||3,
+    precio:      parseInt(document.getElementById('colPrecio').value)||4,
+    stock:       parseInt(document.getElementById('colStock').value)||5,
+    otro:        parseInt(document.getElementById('colOtro').value)||6,
+  };
+  localStorage.setItem('pos_cols', JSON.stringify(columns));
+  showToast('✓ Columnas guardadas','success');
+}
+
+async function testConnection() {
+  if(!config.productsUrl){ showToast('Guarda la configuración primero','error'); return; }
+  showToast('Probando...','');
+  try {
+    const data=await fetchCSV(config.productsUrl);
+    showToast('✓ OK · '+(data.length-1)+' productos','success');
+    updateStatus(true);
+  } catch(e) {
+    showToast('Error: '+e.message,'error');
+    updateStatus(false);
+  }
+}
+
+function updateStatus(v) {
+  const dot=document.getElementById('statusDot');
+  if(v===true)  dot.className='status-dot connected';
+  else if(v===false) dot.className='status-dot error';
+  else dot.className='status-dot'+(config.productsUrl?' connected':'');
+}
+
+// ══════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show '+(type||'');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.className='toast',2800);
+}
+</script>
+</body>
+</html>
