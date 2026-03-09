@@ -746,9 +746,15 @@ function guardarRegistro(){
 }
 
 function enviarASheets(reg, callback){
+  var params='fecha='+encodeURIComponent(reg.fecha)+
+    '&hora='+encodeURIComponent(reg.hora)+
+    '&usuario='+encodeURIComponent(reg.usuario)+
+    '&codigo='+encodeURIComponent(reg.codigo)+
+    '&item='+encodeURIComponent(reg.item)+
+    '&desc='+encodeURIComponent(reg.descripcion||'');
+  var url=SCRIPT_URL+'?'+params;
   var xhr=new XMLHttpRequest();
-  xhr.open('POST', SCRIPT_URL, true);
-  xhr.setRequestHeader('Content-Type','text/plain');
+  xhr.open('GET', url, true);
   xhr.timeout=8000;
   xhr.onload=function(){
     try{ var res=JSON.parse(xhr.responseText); callback(res.ok!==false); }
@@ -756,10 +762,7 @@ function enviarASheets(reg, callback){
   };
   xhr.onerror=function(){ callback(false); };
   xhr.ontimeout=function(){ callback(false); };
-  xhr.send(JSON.stringify({
-    fecha:reg.fecha,hora:reg.hora,usuario:reg.usuario,
-    codigo:reg.codigo,item:reg.item,descripcion:reg.descripcion
-  }));
+  xhr.send();
 }
 
 function sincronizarPendientes(){
