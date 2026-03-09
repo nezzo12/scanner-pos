@@ -261,6 +261,19 @@ textarea.f-input{resize:none;min-height:72px;line-height:1.5;}
       <button class="btn full" id="guardarBtn">💾 Guardar registro</button>
       <button class="btn sec full" id="limpiarBtn">↺ Limpiar</button>
     </div>
+
+    <!-- SYNC STATUS BAR -->
+    <div id="syncBar" style="display:none;background:rgba(255,179,71,0.08);border:1px solid rgba(255,179,71,0.25);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:16px;">⏳</span>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#ffb347;"><span id="pendingCount">0</span> registro(s) pendiente(s)</div>
+          <div style="font-size:11px;color:var(--muted);">Sin conexión · Se sincronizarán solos</div>
+        </div>
+      </div>
+      <button class="btn sec" style="padding:8px 12px;font-size:11px;white-space:nowrap;" id="syncNowBtn">↑ Sincronizar</button>
+    </div>
+
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;">Registros <span id="regCount" style="color:var(--accent);font-size:12px;"></span></span>
       <button class="btn sec" style="padding:8px 14px;font-size:11px;" id="exportBtn">⬇ Exportar CSV</button>
@@ -392,6 +405,10 @@ window.addEventListener('DOMContentLoaded', function() {
   on('nav-config','click',function(){showScreen('config');});
 
   renderRegistros();
+  actualizarSyncBar();
+
+  on('syncNowBtn','touchend',function(e){e.preventDefault();sincronizarPendientes();});
+  on('syncNowBtn','click',sincronizarPendientes);
 
   // Restaurar sesión si existe
   var saved = sessionStorage.getItem('pos_user');
@@ -688,6 +705,13 @@ function actualizarPreview(){
   document.getElementById('prevFecha').textContent=ahora.toLocaleDateString('es-MX')+' '+ahora.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('regPreview').style.display='block';
 }
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwcMUeJoJsrsLTCAYAfYNwM5T-60iy-qpEBn99dPZLWBUS38nAroral4TI4a5M8MtMq/exec';
+var pendientes = JSON.parse(localStorage.getItem('pos_pendientes')||'[]');
+var sincronizando = false;
+
+// Escuchar cuando vuelve internet
+window.addEventListener('online', function(){ sincronizarPendientes(); });
+
 function guardarRegistro(){
   var cod=(document.getElementById('regCodigo').value||'').trim();
   var desc=(document.getElementById('regDescripcion').value||'').trim();
@@ -695,13 +719,91 @@ function guardarRegistro(){
   if(!cod){showToast('El código es obligatorio','error');return;}
   if(!item){showToast('El ítem es obligatorio','error');return;}
   var ahora=new Date();
-  registros.unshift({id:Date.now(),codigo:cod,descripcion:desc,item:item,
+  var reg={id:Date.now(),codigo:cod,descripcion:desc,item:item,
     usuario:currentUser?currentUser.name:'—',
     fecha:ahora.toLocaleDateString('es-MX'),
-    hora:ahora.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})});
-  if(registros.length>100)registros.pop();
+    hora:ahora.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})};
+
+  // Guardar local siempre
+  registros.unshift(reg);
+  if(registros.length>200)registros.pop();
   localStorage.setItem('pos_registros',JSON.stringify(registros));
-  limpiarFormReg();renderRegistros();showToast('✓ Registro guardado','success');
+  limpiarFormReg();renderRegistros();
+  showToast('💾 Guardando en Sheets...','');
+
+  // Intentar enviar a Sheets
+  enviarASheets(reg, function(ok){
+    if(ok){
+      showToast('✅ Guardado en Google Sheets','success');
+    } else {
+      // Sin internet — agregar a cola de pendientes
+      pendientes.push(reg);
+      localStorage.setItem('pos_pendientes',JSON.stringify(pendientes));
+      actualizarSyncBar();
+      showToast('📵 Sin internet · Guardado local, se sincronizará luego','');
+    }
+  });
+}
+
+function enviarASheets(reg, callback){
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST', SCRIPT_URL, true);
+  xhr.setRequestHeader('Content-Type','text/plain');
+  xhr.timeout=8000;
+  xhr.onload=function(){
+    try{ var res=JSON.parse(xhr.responseText); callback(res.ok!==false); }
+    catch(e){ callback(true); }
+  };
+  xhr.onerror=function(){ callback(false); };
+  xhr.ontimeout=function(){ callback(false); };
+  xhr.send(JSON.stringify({
+    fecha:reg.fecha,hora:reg.hora,usuario:reg.usuario,
+    codigo:reg.codigo,item:reg.item,descripcion:reg.descripcion
+  }));
+}
+
+function sincronizarPendientes(){
+  if(sincronizando||!pendientes.length) return;
+  sincronizando=true;
+  showToast('🔄 Sincronizando '+pendientes.length+' pendiente(s)...','');
+
+  var cola=pendientes.slice(); // copia
+  var idx=0;
+  var enviados=0;
+
+  function enviarSiguiente(){
+    if(idx>=cola.length){
+      sincronizando=false;
+      if(enviados>0){
+        showToast('✅ '+enviados+' registro(s) sincronizados','success');
+        actualizarSyncBar();
+      }
+      return;
+    }
+    var reg=cola[idx]; idx++;
+    enviarASheets(reg, function(ok){
+      if(ok){
+        // Quitar de pendientes
+        pendientes=pendientes.filter(function(p){ return p.id!==reg.id; });
+        localStorage.setItem('pos_pendientes',JSON.stringify(pendientes));
+        enviados++;
+      }
+      setTimeout(enviarSiguiente, 400); // pequeña pausa entre envíos
+    });
+  }
+  enviarSiguiente();
+}
+
+function actualizarSyncBar(){
+  var bar=document.getElementById('syncBar');
+  var cnt=document.getElementById('pendingCount');
+  if(!bar)return;
+  if(pendientes.length>0){
+    bar.style.display='flex';
+    if(cnt)cnt.textContent=pendientes.length;
+  } else {
+    bar.style.display='none';
+  }
 }
 function limpiarFormReg(){
   document.getElementById('regCodigo').value='';
