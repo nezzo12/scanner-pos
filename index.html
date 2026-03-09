@@ -392,6 +392,10 @@ window.addEventListener('DOMContentLoaded', function() {
   on('nav-config','click',function(){showScreen('config');});
 
   renderRegistros();
+
+  // Restaurar sesión si existe
+  var saved = sessionStorage.getItem('pos_user');
+  if(saved){ try{ currentUser=JSON.parse(saved); onLoginSuccess(); }catch(e){ sessionStorage.removeItem('pos_user'); } }
 });
 
 function on(id,ev,fn){ var el=document.getElementById(id); if(el) el.addEventListener(ev,fn); }
@@ -468,6 +472,7 @@ function onLoginSuccess(){
   document.getElementById('adminOnlyMsg').style.display=isAdmin?'none':'block';
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
+  sessionStorage.setItem('pos_user', JSON.stringify(currentUser));
   showToast('Bienvenido, '+currentUser.name+' 👋','success');
   cargarProductos();
 }
@@ -476,6 +481,7 @@ function confirmLogout(){
   if(confirm('¿Cerrar sesión?')){
     if(isScanning)stopScanner();if(isRegScanning)stopRegScanner();
     currentUser=null;dataLoaded=false;productData=[];
+    sessionStorage.removeItem('pos_user');
     document.getElementById('inputUser').value='';document.getElementById('inputPass').value='';
     document.getElementById('loginError').className='login-error';
     document.getElementById('mainApp').style.display='none';
