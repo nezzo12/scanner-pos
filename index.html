@@ -753,16 +753,17 @@ function enviarASheets(reg, callback){
     '&item='+encodeURIComponent(reg.item)+
     '&desc='+encodeURIComponent(reg.descripcion||'');
   var url=SCRIPT_URL+'?'+params;
-  var xhr=new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.timeout=8000;
-  xhr.onload=function(){
-    try{ var res=JSON.parse(xhr.responseText); callback(res.ok!==false); }
-    catch(e){ callback(true); }
+
+  // Usar imagen invisible para evitar CORS (no-cors GET)
+  var img=new Image();
+  var done=false;
+  var timer=setTimeout(function(){
+    if(!done){ done=true; callback(false); }
+  },8000);
+  img.onload=img.onerror=function(){
+    if(!done){ done=true; clearTimeout(timer); callback(true); }
   };
-  xhr.onerror=function(){ callback(false); };
-  xhr.ontimeout=function(){ callback(false); };
-  xhr.send();
+  img.src=url+'&_t='+Date.now();
 }
 
 function sincronizarPendientes(){
