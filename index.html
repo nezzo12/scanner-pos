@@ -105,15 +105,15 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .d-field{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;}
 .d-field.full{grid-column:1/-1;}
-.d-label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;}
-.d-value{font-size:14px;color:var(--text);font-weight:500;word-break:break-word;}
-.d-value.big{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--accent);}
-.d-value.green{color:var(--accent);}
-.d-value.warn{color:#ffb347;}
+.d-label{font-size:10px;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px;font-family:'Syne',sans-serif;font-weight:700;}
+.d-value{font-size:14px;color:var(--text);font-weight:400;word-break:break-word;font-family:'DM Mono',monospace;}
+.d-value.price-val{font-size:14px;color:var(--text);font-family:'DM Mono',monospace;font-weight:400;}
+.d-value.green{color:var(--accent);font-family:'Syne',sans-serif;font-weight:700;}
+.d-value.warn{color:#ffb347;font-family:'Syne',sans-serif;font-weight:700;}
 .barcode-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;margin-bottom:14px;}
 .bc-icon{font-size:22px;}
-.bc-label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
-.bc-value{font-size:15px;font-weight:500;letter-spacing:1px;}
+.bc-label{font-size:10px;color:var(--accent);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px;font-family:'Syne',sans-serif;font-weight:700;}
+.bc-value{font-size:15px;font-weight:500;letter-spacing:1px;font-family:'DM Mono',monospace;}
 
 /* REGISTRO */
 .reg-scanner-area{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;position:relative;margin-bottom:12px;display:none;}
@@ -531,26 +531,66 @@ function openDetail(row){
   var ndpto=g(C.namedepto),as400=g(C.as400),p4w=g(C.p4w),dpto=g(C.dpto),code=g(C.code);
 
   document.getElementById('detailTitle').textContent=desc||name||item||'Producto';
+
+  // Format p4w with comma for thousands, dot for decimals
+  var p4wFmt='—';
+  if(p4w){
+    var n=parseFloat(p4w.replace(/,/g,''));
+    if(!isNaN(n)) p4wFmt='$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    else p4wFmt=p4w;
+  }
+
   var sc=stat.toUpperCase()==='A'?'green':'warn';
+
   document.getElementById('detailBody').innerHTML=
-    '<div class="desc-card"><div class="desc-label">Descripción</div><div class="desc-value">'+(desc||'—')+'</div></div>'+
-    '<div class="detail-grid">'+
-      df('Item',item)+
-      df('Price',price?'$'+price:'—',false,price?'big':'')+
-      df('Status',stat,false,sc)+
-      df('OnHand',onhand)+
-      df('OnOrder',onord)+
-      df('AS400',as400)+
-      df('p4w',p4w?'$'+p4w:'—')+
-      df('Dpto',dpto)+
-      df('Name Depto',ndpto,true)+
+    // Item — full width
+    '<div class="detail-grid" style="margin-bottom:10px;">'+
+      df('Item', item, true)+
     '</div>'+
-    (code?'<div class="barcode-card"><span class="bc-icon">▌▌▌ ▌▌ ▌</span><div><div class="bc-label">Código de barras</div><div class="bc-value">'+code+'</div></div></div>':'');
+
+    // Description — full width, same font as rest but larger
+    '<div class="d-field full" style="margin-bottom:10px;">'+
+      '<div class="d-label">Descripción</div>'+
+      '<div class="d-value" style="font-size:16px;line-height:1.4;">'+(desc||'—')+'</div>'+
+    '</div>'+
+
+    // Row: AS400 | Price | p4w
+    '<div class="detail-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:10px;">'+
+      df('AS400', as400)+
+      df('Price', price ? '$'+parseFloat(price.replace(/,/g,'')).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—', false, price?'price-val':'')+
+      df('p4w', p4wFmt)+
+    '</div>'+
+
+    // Row: OnHand | OnOrder | Status
+    '<div class="detail-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:10px;">'+
+      df('OnHand', onhand)+
+      df('OnOrder', onord)+
+      df('Status', stat, false, sc)+
+    '</div>'+
+
+    // Row: Dpto | Name Depto
+    '<div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px;">'+
+      df('Dpto', dpto)+
+      df('Name Depto', ndpto)+
+    '</div>'+
+
+    // Barcode — full width at bottom
+    (code?
+      '<div class="barcode-card">'+
+        '<span class="bc-icon">▌▌▌ ▌▌ ▌</span>'+
+        '<div><div class="bc-label">Código de barras</div>'+
+        '<div class="bc-value">'+code+'</div></div>'+
+      '</div>'
+    :'');
+
   document.getElementById('screen-detail').style.display='block';
   document.getElementById('screen-detail').scrollTop=0;
 }
 function df(label,value,full,cls){
-  return '<div class="d-field'+(full?' full':'')+'"><div class="d-label">'+label+'</div><div class="d-value'+(cls?' '+cls:'')+'">'+( value||'—')+'</div></div>';
+  return '<div class="d-field'+(full?' full':'')+'">'+
+    '<div class="d-label">'+label+'</div>'+
+    '<div class="d-value'+(cls?' '+cls:'')+'">'+( value||'—')+'</div>'+
+  '</div>';
 }
 function closeDetail(){document.getElementById('screen-detail').style.display='none';}
 
