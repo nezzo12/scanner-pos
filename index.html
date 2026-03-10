@@ -532,49 +532,47 @@ function openDetail(row){
 
   document.getElementById('detailTitle').textContent=desc||name||item||'Producto';
 
-  // Format p4w with comma for thousands, dot for decimals
-  var p4wFmt='—';
-  if(p4w){
-    var n=parseFloat(p4w.replace(/,/g,''));
-    if(!isNaN(n)) p4wFmt='$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-    else p4wFmt=p4w;
+  function fmtMoney(val){
+    if(!val||val==='—')return '—';
+    var clean=val.replace(/[$,]/g,'');
+    var n=parseFloat(clean);
+    if(isNaN(n))return val;
+    return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   }
 
   var sc=stat.toUpperCase()==='A'?'green':'warn';
 
   document.getElementById('detailBody').innerHTML=
-    // Item — full width
-    '<div class="detail-grid" style="margin-bottom:10px;">'+
-      df('Item', item, true)+
+    // Item full width
+    '<div class="detail-grid" style="grid-template-columns:1fr;margin-bottom:10px;">'+
+      df('Item',item)+
     '</div>'+
-
-    // Description — full width, same font as rest but larger
-    '<div class="d-field full" style="margin-bottom:10px;">'+
+    // Description full width
+    '<div class="d-field" style="margin-bottom:10px;">'+
       '<div class="d-label">Descripción</div>'+
-      '<div class="d-value" style="font-size:16px;line-height:1.4;">'+(desc||'—')+'</div>'+
+      '<div class="d-value" style="font-size:15px;line-height:1.5;">'+(desc||'—')+'</div>'+
     '</div>'+
-
-    // Row: AS400 | Price | p4w
-    '<div class="detail-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:10px;">'+
-      df('AS400', as400)+
-      df('Price', price ? '$'+parseFloat(price.replace(/,/g,'')).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—', false, price?'price-val':'')+
-      df('p4w', p4wFmt)+
-    '</div>'+
-
-    // Row: OnHand | OnOrder | Status
-    '<div class="detail-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:10px;">'+
-      df('OnHand', onhand)+
-      df('OnOrder', onord)+
-      df('Status', stat, false, sc)+
-    '</div>'+
-
-    // Row: Dpto | Name Depto
+    // AS400 | Price
     '<div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px;">'+
-      df('Dpto', dpto)+
-      df('Name Depto', ndpto)+
+      df('AS400',as400)+
+      df('Price',fmtMoney(price))+
     '</div>'+
-
-    // Barcode — full width at bottom
+    // p4w | OnOrder
+    '<div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px;">'+
+      df('p4w',fmtMoney(p4w))+
+      df('OnOrder',onord)+
+    '</div>'+
+    // OnHand | Status
+    '<div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px;">'+
+      df('OnHand',onhand)+
+      df('Status',stat,false,sc)+
+    '</div>'+
+    // Dpto (ajustado) | Name Depto (amplio)
+    '<div class="detail-grid" style="grid-template-columns:auto 1fr;margin-bottom:10px;">'+
+      df('Dpto',dpto)+
+      df('Name Depto',ndpto)+
+    '</div>'+
+    // Barcode
     (code?
       '<div class="barcode-card">'+
         '<span class="bc-icon">▌▌▌ ▌▌ ▌</span>'+
