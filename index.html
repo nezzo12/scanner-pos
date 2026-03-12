@@ -930,6 +930,7 @@ function testConnection(){
 }
 
 function actualizarBase(){
+  var btn=document.getElementById('actualizarBaseBtn');
   var status=document.getElementById('updateStatus');
   btn.disabled=true; btn.textContent='⏳ Actualizando...';
   status.style.display='block';
@@ -937,7 +938,6 @@ function actualizarBase(){
   status.textContent='Conectando con Google Drive...';
 
   var url=IMPORTADOR_URL+'?action=importar&_t='+Date.now();
-  var img=new Image();
   var done=false;
   var timer=setTimeout(function(){
     if(!done){
@@ -948,27 +948,18 @@ function actualizarBase(){
     }
   },30000);
 
-  // Usar fetch con no-cors para disparar el script
-  fetch(url, {mode:'no-cors'})
-    .then(function(){
-      if(!done){
-        done=true; clearTimeout(timer);
-        btn.disabled=false; btn.textContent='🔄 Actualizar base ahora';
-        status.style.color='var(--accent)';
-        status.textContent='✅ Base actualizada correctamente.\nRecarga la app para ver los nuevos datos.';
-        // Recargar datos en memoria
-        dataLoaded=false; productData=[];
-        setTimeout(function(){ cargarProductos(); }, 1500);
-      }
-    })
-    .catch(function(){
-      if(!done){
-        done=true; clearTimeout(timer);
-        btn.disabled=false; btn.textContent='🔄 Actualizar base ahora';
-        status.style.color='var(--danger)';
-        status.textContent='⚠️ Error de conexión. Intenta de nuevo.';
-      }
-    });
+  var img=new Image();
+  img.onload=img.onerror=function(){
+    if(!done){
+      done=true; clearTimeout(timer);
+      btn.disabled=false; btn.textContent='🔄 Actualizar base ahora';
+      status.style.color='var(--accent)';
+      status.textContent='✅ Base actualizada. Recargando productos...';
+      dataLoaded=false; productData=[];
+      setTimeout(function(){ cargarProductos(); }, 1500);
+    }
+  };
+  img.src=url;
 }
 
 // ═══════════════════════════════════════════
