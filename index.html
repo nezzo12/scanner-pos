@@ -928,7 +928,8 @@ function testConnection(){
   showToast('Probando...','');
   xhrGet(URLS.products,function(t){showToast('✓ OK · '+t.split('\n').length+' filas','success');},function(){showToast('Error de conexión','error');});
 }
-  var btn=document.getElementById('actualizarBaseBtn');
+
+function actualizarBase(){
   var status=document.getElementById('updateStatus');
   btn.disabled=true; btn.textContent='⏳ Actualizando...';
   status.style.display='block';
