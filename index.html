@@ -238,7 +238,10 @@ textarea.f-input{resize:none;min-height:72px;line-height:1.5;}
       <div class="f-wrap">
         <div class="f-lbl">① Código de barras</div>
         <div class="input-row">
-          <input type="text" class="f-input" id="regCodigo" placeholder="Escanea o escribe el código">
+          <div style="position:relative;flex:1;">
+            <input type="text" class="f-input" id="regCodigo" placeholder="Escanea o escribe el código" style="padding-right:36px;">
+            <button id="clearRegCodigoBtn" onclick="clearRegCodigo()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--muted);border:none;color:#000;width:20px;height:20px;border-radius:50%;font-size:11px;cursor:pointer;line-height:20px;text-align:center;font-weight:700;">✕</button>
+          </div>
           <button class="btn ico sec" id="regScanBtn">📷</button>
         </div>
       </div>
@@ -729,7 +732,11 @@ function startScanner(){
   html5Scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:210,height:110},aspectRatio:1.5},
     function(decoded){
       if(scanCooldown)return;scanCooldown=true;setTimeout(function(){scanCooldown=false;},2500);
-      document.getElementById('searchInput').value=decoded;ejecutarBusqueda();
+      document.getElementById('searchInput').value=decoded;
+      var clr=document.getElementById('clearSearchBtn');
+      if(clr)clr.style.display='block';
+      stopScanner(); // auto-cierra el lector
+      ejecutarBusqueda();
       showToast('📷 Código escaneado','success');
     },function(){}
   ).catch(function(){showToast('No se pudo acceder a la cámara','error');});
@@ -747,7 +754,10 @@ function startRegScanner(){
   regScanner=new Html5Qrcode("regreader");
   regScanner.start({facingMode:"environment"},{fps:10,qrbox:{width:210,height:110},aspectRatio:1.5},
     function(decoded){
-      document.getElementById('regCodigo').value=decoded;stopRegScanner();actualizarPreview();showToast('✓ Código escaneado','success');
+      document.getElementById('regCodigo').value=decoded;
+      var clr=document.getElementById('clearRegCodigoBtn');
+      if(clr) clr.style.display='block';
+      stopRegScanner();actualizarPreview();showToast('✓ Código escaneado','success');
     },function(){}
   ).catch(function(){showToast('No se pudo acceder a la cámara','error');});
   isRegScanning=true;
@@ -761,8 +771,16 @@ function stopRegScanner(){
 // ═══════════════════════════════════════════
 //  REGISTRO
 // ═══════════════════════════════════════════
+function clearRegCodigo(){
+  document.getElementById('regCodigo').value='';
+  document.getElementById('clearRegCodigoBtn').style.display='none';
+  actualizarPreview();
+}
+
 function actualizarPreview(){
   var cod=(document.getElementById('regCodigo').value||'').trim();
+  var clr=document.getElementById('clearRegCodigoBtn');
+  if(clr) clr.style.display=cod?'block':'none';
   var desc=(document.getElementById('regDescripcion').value||'').trim();
   var item=(document.getElementById('regItem').value||'').trim();
   if(!cod&&!desc&&!item){document.getElementById('regPreview').style.display='none';return;}
