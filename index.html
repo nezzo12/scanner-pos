@@ -704,11 +704,11 @@ function ejecutarBusqueda(){
     return '<div class="result-row" data-idx="'+realIdx+'">'+
       '<div class="result-icon">📦</div>'+
       '<div class="result-info">'+
-        '<div class="result-name" style="font-size:12px;white-space:normal;line-height:1.4;">'+(desc||item||'Sin nombre')+'</div>'+
+        '<div class="result-name" style="font-size:13px;white-space:normal;line-height:1.4;">'+(desc||item||'Sin nombre')+'</div>'+
         '<div class="result-sub" style="margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'+
           (item?'<span>Item: '+item+'</span>':'')+
-          (as400?'<span style="color:var(--muted);">·</span><span>AS400: '+as400+'</span>':'')+
-          (priceFmt?'<span style="color:var(--muted);">·</span><span style="color:var(--accent);font-family:\'Syne\',sans-serif;font-weight:700;">'+priceFmt+'</span>':'')+
+          (as400?'<span style="color:var(--muted);">·</span><span>'+as400+'</span>':'')+
+          (priceFmt?'<span style="color:var(--muted);">·</span><span style="color:var(--warn);font-family:\'DM Mono\',monospace;font-size:13px;font-weight:700;">'+priceFmt+'</span>':'')+
         '</div>'+
       '</div>'+
     '</div>';
