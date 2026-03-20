@@ -721,11 +721,17 @@ function ejecutarBusqueda(){
   var q=(document.getElementById('searchInput').value||'').trim().toLowerCase();
   var list=document.getElementById('resultsList');
   var meta=document.getElementById('searchMeta');
+  var ts=document.getElementById('searchTimestamp');
   if(!q){
     list.innerHTML='';
+    meta.style.display='block';
     meta.textContent=dataLoaded?productData.length+' productos · Escribe para buscar':'Escribe para buscar o escanea un código';
+    if(ts)ts.style.display='block';
     return;
   }
+  // Con búsqueda activa — ocultar timestamp siempre
+  if(ts)ts.style.display='none';
+  meta.style.display='block';
   if(!dataLoaded){meta.textContent='Cargando datos, espera un momento...';return;}
   var results=productData.filter(function(row){
     return (row[C.code]||'').toLowerCase().indexOf(q)>=0||
