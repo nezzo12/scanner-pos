@@ -65,8 +65,11 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .search-meta{padding:8px 16px 4px;font-size:11px;color:var(--muted);}
 
 /* SCANNER */
-.scanner-area{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;position:relative;margin:0 16px 8px;display:none;}
-#reader{width:100%;}
+.scanner-area{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;position:relative;margin:0 16px 8px;display:none;height:140px;}
+#reader{width:100%;height:140px;}
+#reader video{object-fit:cover;width:100%!important;height:140px!important;}
+#reader img{display:none!important;}
+#reader canvas{display:none!important;}
 .scan-overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;}
 .scan-frame{width:200px;height:110px;position:relative;}
 .scan-frame::before,.scan-frame::after,.corner-br,.corner-bl{content:'';position:absolute;width:20px;height:20px;border-color:var(--accent);border-style:solid;opacity:0.9;}
@@ -774,7 +777,7 @@ function startScanner(){
   document.getElementById('scannerArea').style.display='block';
   document.getElementById('scanToggleBtn').textContent='✕';
   html5Scanner=new Html5Qrcode("reader");
-  html5Scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:210,height:110},aspectRatio:1.5},
+  html5Scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:220,height:80},aspectRatio:2.5},
     function(decoded){
       if(scanCooldown)return;scanCooldown=true;setTimeout(function(){scanCooldown=false;},2500);
       document.getElementById('searchInput').value=decoded;
@@ -993,7 +996,14 @@ function actualizarTimestamp(){
   var ts=localStorage.getItem('pos_last_update');
   if(ts){
     var d=new Date(ts);
-    el.textContent='Última actualización: '+d.toLocaleDateString('es-MX')+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    var dd=String(d.getDate()).padStart(2,'0');
+    var mm=String(d.getMonth()+1).padStart(2,'0');
+    var yyyy=d.getFullYear();
+    var h=d.getHours();
+    var min=String(d.getMinutes()).padStart(2,'0');
+    var ampm=h>=12?'pm':'am';
+    var h12=h%12||12;
+    el.textContent='Última actualización: '+dd+'.'+mm+'.'+yyyy+' '+h12+':'+min+' '+ampm;
   } else {
     el.textContent='';
   }
