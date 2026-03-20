@@ -224,6 +224,7 @@ textarea.f-input{resize:none;min-height:72px;line-height:1.5;}
       <div class="scan-overlay"><div class="scan-frame"><div class="corner-br"></div><div class="corner-bl"></div><div class="scan-line"></div></div></div>
     </div>
     <div class="search-meta" id="searchMeta">Escribe para buscar o escanea un código</div>
+    <div class="search-meta" id="searchTimestamp" style="margin-top:-4px;"></div>
     <div id="loadingDiv" class="spinner-wrap" style="display:none;"><div class="spinner"></div><div class="spinner-text">Cargando base de datos...</div></div>
     <div id="resultsList" class="results-list" style="touch-action:pan-y;"></div>
   </div>
@@ -426,9 +427,20 @@ window.addEventListener('DOMContentLoaded', function() {
   on('syncNowBtn','touchend',function(e){e.preventDefault();sincronizarPendientes();});
   on('syncNowBtn','click',sincronizarPendientes);
 
-  // Restaurar sesión si existe
-  var saved = sessionStorage.getItem('pos_user');
-  if(saved){ try{ currentUser=JSON.parse(saved); onLoginSuccess(); }catch(e){ sessionStorage.removeItem('pos_user'); } }
+  // Restaurar sesión (localStorage, expira en 8 horas)
+  var saved = localStorage.getItem('pos_user');
+  if(saved){
+    try{
+      var s=JSON.parse(saved);
+      if(s.expires && Date.now() < s.expires){
+        currentUser=s.user; onLoginSuccess();
+      } else {
+        localStorage.removeItem('pos_user');
+      }
+    }catch(e){ localStorage.removeItem('pos_user'); }
+  }
+  // Mostrar timestamp de última actualización
+  actualizarTimestamp();
 });
 
 function on(id,ev,fn){ var el=document.getElementById(id); if(el) el.addEventListener(ev,fn); }
@@ -505,7 +517,11 @@ function onLoginSuccess(){
   document.getElementById('adminOnlyMsg').style.display=isAdmin?'none':'block';
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
-  sessionStorage.setItem('pos_user', JSON.stringify(currentUser));
+  // Guardar sesión con expiración de 8 horas
+  localStorage.setItem('pos_user', JSON.stringify({
+    user: currentUser,
+    expires: Date.now() + 8*60*60*1000
+  }));
   showToast('Bienvenido, '+currentUser.name+' 👋','success');
   cargarProductos();
 }
@@ -514,7 +530,7 @@ function confirmLogout(){
   if(confirm('¿Cerrar sesión?')){
     if(isScanning)stopScanner();if(isRegScanning)stopRegScanner();
     currentUser=null;dataLoaded=false;productData=[];
-    sessionStorage.removeItem('pos_user');
+    localStorage.removeItem('pos_user');
     document.getElementById('inputUser').value='';document.getElementById('inputPass').value='';
     document.getElementById('loginError').className='login-error';
     document.getElementById('mainApp').style.display='none';
@@ -613,6 +629,25 @@ function closeDetail(){document.getElementById('screen-detail').style.display='n
 // ═══════════════════════════════════════════
 function cargarProductos(){
   if(dataLoaded)return;
+
+  // Intentar cargar desde caché
+  var cached = localStorage.getItem('pos_productos');
+  if(cached){
+    try{
+      var arr = JSON.parse(cached);
+      if(arr && arr.length > 0){
+        productData = arr;
+        dataLoaded = true;
+        document.getElementById('loadingDiv').style.display='none';
+        document.getElementById('statusDot').className='status-dot connected';
+        document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
+        actualizarTimestamp();
+        return; // usa caché, no descarga
+      }
+    }catch(e){ localStorage.removeItem('pos_productos'); }
+  }
+
+  // Sin caché — descarga
   document.getElementById('loadingDiv').style.display='block';
   document.getElementById('searchMeta').textContent='Cargando base de datos...';
   xhrGet(URLS.products,parsearProductos,function(){
@@ -628,9 +663,12 @@ function parsearProductos(csv){
     productData.push(parseCSVLine(line));
   }
   dataLoaded=true;
+  // Guardar en caché
+  try{ localStorage.setItem('pos_productos', JSON.stringify(productData)); }catch(e){}
   document.getElementById('loadingDiv').style.display='none';
   document.getElementById('statusDot').className='status-dot connected';
   document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
+  actualizarTimestamp();
   showToast('✓ '+productData.length+' productos cargados','success');
 }
 function onProductError(){
@@ -949,6 +987,18 @@ function saveConfig(){
   URLS.products=p;URLS.users=u;dataLoaded=false;productData=[];
   showToast('✓ Guardado','success');cargarProductos();
 }
+function actualizarTimestamp(){
+  var el=document.getElementById('searchTimestamp');
+  if(!el)return;
+  var ts=localStorage.getItem('pos_last_update');
+  if(ts){
+    var d=new Date(ts);
+    el.textContent='Última actualización: '+d.toLocaleDateString('es-MX')+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  } else {
+    el.textContent='';
+  }
+}
+
 function testConnection(){
   showToast('Probando...','');
   xhrGet(URLS.products,function(t){showToast('✓ OK · '+t.split('\n').length+' filas','success');},function(){showToast('Error de conexión','error');});
@@ -980,6 +1030,11 @@ function actualizarBase(){
       btn.disabled=false; btn.textContent='🔄 Actualizar base ahora';
       status.style.color='var(--accent)';
       status.textContent='✅ Base actualizada. Recargando productos...';
+      // Limpiar caché para forzar descarga fresca
+      localStorage.removeItem('pos_productos');
+      // Guardar timestamp
+      var ahora=new Date();
+      localStorage.setItem('pos_last_update', ahora.toISOString());
       dataLoaded=false; productData=[];
       setTimeout(function(){ cargarProductos(); }, 1500);
     }
