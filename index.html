@@ -698,6 +698,11 @@ function onSearchInput(){
   var val=document.getElementById('searchInput').value;
   var clearBtn=document.getElementById('clearSearchBtn');
   if(clearBtn) clearBtn.style.display=val?'block':'none';
+  // Ocultar meta mientras escribe
+  var meta=document.getElementById('searchMeta');
+  var ts=document.getElementById('searchTimestamp');
+  if(val){ if(meta)meta.style.display='none'; if(ts)ts.style.display='none'; }
+  else { if(meta)meta.style.display='block'; if(ts)ts.style.display='block'; }
   searchTimeout=setTimeout(ejecutarBusqueda,180);
 }
 
@@ -705,7 +710,10 @@ function clearSearch(){
   document.getElementById('searchInput').value='';
   document.getElementById('clearSearchBtn').style.display='none';
   document.getElementById('resultsList').innerHTML='';
-  document.getElementById('searchMeta').textContent=dataLoaded?productData.length+' productos · Escribe para buscar':'Escribe para buscar o escanea un código';
+  var meta=document.getElementById('searchMeta');
+  var ts=document.getElementById('searchTimestamp');
+  if(meta){meta.style.display='block';meta.textContent=dataLoaded?productData.length+' productos · Escribe para buscar':'Escribe para buscar o escanea un código';}
+  if(ts)ts.style.display='block';
   document.getElementById('searchInput').focus();
 }
 
