@@ -228,6 +228,7 @@ textarea.f-input{resize:none;min-height:72px;line-height:1.5;}
     </div>
     <div class="search-meta" id="searchMeta">Escribe para buscar o escanea un código</div>
     <div class="search-meta" id="searchTimestamp" style="margin-top:-4px;"></div>
+    <div id="mensajeBanner" style="display:none;margin:6px 16px 0;background:rgba(235,203,139,0.12);border:1px solid rgba(235,203,139,0.35);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--warn);line-height:1.5;"></div>
     <div id="loadingDiv" class="spinner-wrap" style="display:none;"><div class="spinner"></div><div class="spinner-text">Cargando base de datos...</div></div>
     <div id="resultsList" class="results-list" style="touch-action:pan-y;"></div>
   </div>
@@ -1021,17 +1022,27 @@ function actualizarTimestamp(){
   if(!el)return;
   xhrGet(URLS.config,function(csv){
     var lines=csv.split('\n');
-    // La fecha está en B1 — primera fila, segunda columna
+    // Fila 1 — last_update
     if(lines.length>0){
       var cols=lines[0].split(',');
       var ts=(cols[1]||'').replace(/["\r]/g,'').trim();
       if(ts){
         el.textContent='Última actualización: '+ts;
-        localStorage.setItem('pos_last_update', ts);
-        return;
+        localStorage.setItem('pos_last_update',ts);
+      } else leerTimestampLocal(el);
+    }
+    // Fila 2 — mensaje
+    var banner=document.getElementById('mensajeBanner');
+    if(banner && lines.length>1){
+      var cols2=lines[1].split(',');
+      var msg=(cols2[1]||'').replace(/["\r]/g,'').trim();
+      if(msg){
+        banner.textContent=msg;
+        banner.style.display='block';
+      } else {
+        banner.style.display='none';
       }
     }
-    leerTimestampLocal(el);
   },function(){
     leerTimestampLocal(el);
   });
