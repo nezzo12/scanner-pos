@@ -589,23 +589,19 @@ function openDetail(row){
       '<div class="d-label">Descripción</div>'+
       '<div class="d-value" style="font-size:15px;line-height:1.5;">'+(desc||'—')+'</div>'+
     '</div>'+
-    // AS400 | Price
-    '<div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px;">'+
+    // AS400 | Price | Status
+    '<div class="detail-grid" style="grid-template-columns:1fr 1fr 52px;margin-bottom:10px;">'+
       df('AS400',as400)+
       df('Price',fmtMoney(price))+
+      df('Status',stat,false,sc)+
     '</div>'+
     // p4w | OnOrder
     '<div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px;">'+
       df('p4w',fmtMoney(p4w))+
       df('OnOrder',onord)+
     '</div>'+
-    // OnHand | Status
-    '<div class="detail-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px;">'+
-      df('OnHand',onhand)+
-      df('Status',stat,false,sc)+
-    '</div>'+
-    // Dpto (ajustado) | Name Depto (amplio)
-    '<div class="detail-grid" style="grid-template-columns:auto 1fr;margin-bottom:10px;">'+
+    // Dpto (4 chars) | Name Depto
+    '<div class="detail-grid" style="grid-template-columns:52px 1fr;margin-bottom:10px;">'+
       df('Dpto',dpto)+
       df('Name Depto',ndpto)+
     '</div>'+
