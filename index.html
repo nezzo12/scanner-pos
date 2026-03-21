@@ -361,7 +361,8 @@ textarea.f-input{resize:none;min-height:72px;line-height:1.5;}
 // ═══════════════════════════════════════════
 var URLS = {
   users:    'https://docs.google.com/spreadsheets/d/e/2PACX-1vRzUOunw18bewpoYcMaz_FhfOX9yw9EkDjpLAUNU2CwpwVzcncFevzMrElZ9Jnk_Fg3E6r6hZHZNZlH/pub?gid=376147534&single=true&output=csv',
-  products: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRzUOunw18bewpoYcMaz_FhfOX9yw9EkDjpLAUNU2CwpwVzcncFevzMrElZ9Jnk_Fg3E6r6hZHZNZlH/pub?gid=682225294&single=true&output=csv'
+  products: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRzUOunw18bewpoYcMaz_FhfOX9yw9EkDjpLAUNU2CwpwVzcncFevzMrElZ9Jnk_Fg3E6r6hZHZNZlH/pub?gid=682225294&single=true&output=csv',
+  config:   'https://docs.google.com/spreadsheets/d/e/2PACX-1vRzUOunw18bewpoYcMaz_FhfOX9yw9EkDjpLAUNU2CwpwVzcncFevzMrElZ9Jnk_Fg3E6r6hZHZNZlH/pub?gid=1654475865&single=true&output=csv'
 };
 
 // Índices de columnas (0-based)
@@ -666,8 +667,15 @@ function parsearProductos(csv){
     productData.push(parseCSVLine(line));
   }
   dataLoaded=true;
-  // Guardar en caché
-  try{ localStorage.setItem('pos_productos', JSON.stringify(productData)); }catch(e){}
+  // Guardar en caché con timestamp
+  var ahora=new Date().toISOString();
+  try{
+    localStorage.setItem('pos_productos', JSON.stringify(productData));
+    // Solo actualizar timestamp si no existe (no sobreescribir el del admin)
+    if(!localStorage.getItem('pos_last_update')){
+      localStorage.setItem('pos_last_update', ahora);
+    }
+  }catch(e){}
   document.getElementById('loadingDiv').style.display='none';
   document.getElementById('statusDot').className='status-dot connected';
   document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
@@ -1011,20 +1019,28 @@ function saveConfig(){
 function actualizarTimestamp(){
   var el=document.getElementById('searchTimestamp');
   if(!el)return;
+  // Leer desde Sheets (fuente de verdad para todos los usuarios)
+  xhrGet(URLS.config,function(csv){
+    var lines=csv.split('\n');
+    if(lines.length>1){
+      var cols=lines[1].split(',');
+      var ts=(cols[1]||'').replace(/["\r]/g,'').trim();
+      if(ts){
+        el.textContent='Última actualización: '+ts;
+        localStorage.setItem('pos_last_update', ts);
+      } else {
+        leerTimestampLocal(el);
+      }
+    }
+  },function(){
+    leerTimestampLocal(el);
+  });
+}
+
+function leerTimestampLocal(el){
   var ts=localStorage.getItem('pos_last_update');
-  if(ts){
-    var d=new Date(ts);
-    var dd=String(d.getDate()).padStart(2,'0');
-    var mm=String(d.getMonth()+1).padStart(2,'0');
-    var yyyy=d.getFullYear();
-    var h=d.getHours();
-    var min=String(d.getMinutes()).padStart(2,'0');
-    var ampm=h>=12?'pm':'am';
-    var h12=h%12||12;
-    el.textContent='Última actualización: '+dd+'.'+mm+'.'+yyyy+' '+h12+':'+min+' '+ampm;
-  } else {
-    el.textContent='';
-  }
+  if(ts) el.textContent='Última actualización: '+ts;
+  else el.textContent='';
 }
 
 function testConnection(){
