@@ -1019,19 +1019,19 @@ function saveConfig(){
 function actualizarTimestamp(){
   var el=document.getElementById('searchTimestamp');
   if(!el)return;
-  // Leer desde Sheets (fuente de verdad para todos los usuarios)
   xhrGet(URLS.config,function(csv){
     var lines=csv.split('\n');
-    if(lines.length>1){
-      var cols=lines[1].split(',');
+    // La fecha está en B1 — primera fila, segunda columna
+    if(lines.length>0){
+      var cols=lines[0].split(',');
       var ts=(cols[1]||'').replace(/["\r]/g,'').trim();
       if(ts){
         el.textContent='Última actualización: '+ts;
         localStorage.setItem('pos_last_update', ts);
-      } else {
-        leerTimestampLocal(el);
+        return;
       }
     }
+    leerTimestampLocal(el);
   },function(){
     leerTimestampLocal(el);
   });
