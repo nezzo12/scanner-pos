@@ -1047,7 +1047,7 @@ function actualizarTimestamp(){
       var msg=(cols2[1]||'').replace(/["\r]/g,'').trim();
       if(msg){
         banner.textContent=msg;
-        banner.style.display='block';
+        if(!isScanning) banner.style.display='block';
       } else {
         banner.style.display='none';
       }
