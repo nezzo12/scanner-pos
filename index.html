@@ -662,7 +662,8 @@ function cargarProductos(){
         document.getElementById('statusDot').className='status-dot connected';
         document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
         actualizarTimestamp();
-        return; // usa caché, no descarga
+        restaurarDetalle(); // restaurar si había detalle abierto
+        return;
       }
     }catch(e){ localStorage.removeItem('pos_productos'); }
   }
@@ -696,7 +697,19 @@ function parsearProductos(csv){
   document.getElementById('statusDot').className='status-dot connected';
   document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
   actualizarTimestamp();
+  restaurarDetalle();
   showToast('✓ '+productData.length+' productos cargados','success');
+}
+
+function restaurarDetalle(){
+  try{
+    var screen=sessionStorage.getItem('pos_screen');
+    var idx=sessionStorage.getItem('pos_detail_idx');
+    if(screen==='detail' && idx!==null){
+      var i=parseInt(idx);
+      if(productData[i]) openDetail(productData[i]);
+    }
+  }catch(e){}
 }
 function onProductError(){
   document.getElementById('loadingDiv').style.display='none';
