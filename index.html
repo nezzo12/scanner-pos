@@ -432,6 +432,18 @@ window.addEventListener('DOMContentLoaded', function() {
   on('syncNowBtn','touchend',function(e){e.preventDefault();sincronizarPendientes();});
   on('syncNowBtn','click',sincronizarPendientes);
 
+  // Restaurar detalle si se minimizó con producto abierto
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='visible'){
+      var screen=sessionStorage.getItem('pos_screen');
+      var idx=sessionStorage.getItem('pos_detail_idx');
+      if(screen==='detail' && idx!==null && productData.length>0){
+        var i=parseInt(idx);
+        if(productData[i]) openDetail(productData[i]);
+      }
+    }
+  });
+
   // Restaurar sesión (localStorage, expira en 8 horas)
   var saved = localStorage.getItem('pos_user');
   if(saved){
@@ -567,6 +579,10 @@ function openDetail(row){
   var stat=g(C.status),onhand=g(C.onhand),onord=g(C.onorder);
   var ndpto=g(C.namedepto),as400=g(C.as400),p4w=g(C.p4w),dpto=g(C.dpto),code=g(C.code);
 
+  // Guardar estado para restaurar si se minimiza
+  try{ sessionStorage.setItem('pos_detail_idx', JSON.stringify(productData.indexOf(row))); }catch(e){}
+  try{ sessionStorage.setItem('pos_screen', 'detail'); }catch(e){}
+
   document.getElementById('detailTitle').textContent=desc||name||item||'Producto';
 
   function fmtMoney(val){
@@ -623,7 +639,10 @@ function df(label,value,full,cls){
     '<div class="d-value'+(cls?' '+cls:'')+'">'+( value||'—')+'</div>'+
   '</div>';
 }
-function closeDetail(){document.getElementById('screen-detail').style.display='none';}
+function closeDetail(){
+  document.getElementById('screen-detail').style.display='none';
+  try{ sessionStorage.removeItem('pos_detail_idx'); sessionStorage.removeItem('pos_screen'); }catch(e){}
+}
 
 // ═══════════════════════════════════════════
 //  PRODUCT DATA
