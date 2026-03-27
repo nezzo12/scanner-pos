@@ -722,14 +722,8 @@ function parsearProductos(csv){
     productData.push(parseCSVLine(line));
   }
   dataLoaded=true;
-  // Guardar en caché con timestamp
-  var ahora=new Date().toISOString();
   try{
     localStorage.setItem('pos_productos', JSON.stringify(productData));
-    // Solo actualizar timestamp si no existe (no sobreescribir el del admin)
-    if(!localStorage.getItem('pos_last_update')){
-      localStorage.setItem('pos_last_update', ahora);
-    }
   }catch(e){}
   document.getElementById('loadingDiv').style.display='none';
   document.getElementById('statusDot').className='status-dot connected';
