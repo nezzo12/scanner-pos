@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS1 Debug</title>
+<style>
+body{background:#2E3440;color:#ECEFF4;font-family:monospace;padding:20px;font-size:13px;}
+h2{color:#88C0D0;margin-bottom:16px;}
+.box{background:#3B4252;border:1px solid #4C566A;border-radius:10px;padding:14px;margin-bottom:12px;}
+.label{color:#88C0D0;font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
+.val{font-size:14px;word-break:break-all;}
+.ok{color:#A3BE8C;}
+.warn{color:#EBCB8B;}
+.err{color:#BF616A;}
+button{background:#88C0D0;color:#2E3440;border:none;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer;margin-right:8px;margin-bottom:8px;}
+</style>
+</head>
+<body>
+<h2>🔍 PS1 — Diagnóstico de caché</h2>
+
+<div class="box">
+  <div class="label">Timestamp en localStorage (pos_last_update)</div>
+  <div class="val" id="tsLocal">—</div>
+</div>
+
+<div class="box">
+  <div class="label">Timestamp en Google Sheets (config B1)</div>
+  <div class="val" id="tsSheets">Cargando...</div>
+</div>
+
+<div class="box">
+  <div class="label">¿Coinciden?</div>
+  <div class="val" id="tsMatch">—</div>
+</div>
+
+<div class="box">
+  <div class="label">Productos en caché (pos_productos)</div>
+  <div class="val" id="cacheInfo">—</div>
+</div>
+
+<div class="box">
+  <div class="label">Respuesta raw del config CSV</div>
+  <div class="val" id="rawCsv" style="font-size:11px;color:#D8DEE9;">—</div>
+</div>
+
+<button onclick="limpiarCache()">🗑️ Limpiar caché local</button>
+<button onclick="recargar()">🔄 Recargar diagnóstico</button>
+
+<script>
+var CONFIG_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRzUOunw18bewpoYcMaz_FhfOX9yw9EkDjpLAUNU2CwpwVzcncFevzMrElZ9Jnk_Fg3E6r6hZHZNZlH/pub?gid=1654475865&single=true&output=csv';
+
+function init(){
+  // Local
+  var tsLocal = localStorage.getItem('pos_last_update') || '(vacío)';
+  document.getElementById('tsLocal').textContent = tsLocal;
+
+  // Cache
+  var cached = localStorage.getItem('pos_productos');
+  if(cached){
+    try{
+      var arr = JSON.parse(cached);
+      document.getElementById('cacheInfo').innerHTML = '<span class="ok">✓ '+arr.length+' productos en caché</span>';
+    }catch(e){
+      document.getElementById('cacheInfo').innerHTML = '<span class="err">✗ Caché corrupto</span>';
+    }
+  } else {
+    document.getElementById('cacheInfo').innerHTML = '<span class="warn">Sin caché</span>';
+  }
+
+  // Sheets — sin caché
+  var url = CONFIG_URL + '&_nocache=' + Date.now();
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.setRequestHeader('Cache-Control','no-cache');
+  xhr.timeout = 10000;
+  xhr.onload = function(){
+    if(xhr.status === 200){
+      var raw = xhr.responseText;
+      document.getElementById('rawCsv').textContent = raw.substring(0, 300);
+      var lines = raw.split('\n');
+      var tsSheets = '';
+      if(lines.length > 0){
+        var cols = lines[0].split(',');
+        tsSheets = (cols[1]||'').replace(/["\r]/g,'').trim();
+      }
+      document.getElementById('tsSheets').textContent = tsSheets || '(vacío)';
+
+      var tsLocal2 = localStorage.getItem('pos_last_update') || '';
+      var match = tsSheets && tsSheets === tsLocal2;
+      document.getElementById('tsMatch').innerHTML = match
+        ? '<span class="ok">✓ SÍ coinciden — usará caché</span>'
+        : '<span class="err">✗ NO coinciden — descargará base nueva<br>Sheets: ['+tsSheets+']<br>Local:  ['+tsLocal2+']</span>';
+    } else {
+      document.getElementById('tsSheets').innerHTML = '<span class="err">Error HTTP '+xhr.status+'</span>';
+    }
+  };
+  xhr.onerror = function(){
+    document.getElementById('tsSheets').innerHTML = '<span class="err">Error de red</span>';
+  };
+  xhr.send();
+}
+
+function limpiarCache(){
+  localStorage.removeItem('pos_productos');
+  localStorage.removeItem('pos_last_update');
+  alert('Caché limpiado. Recarga la app PS1.');
+  init();
+}
+
+function recargar(){ location.reload(); }
+
+init();
+</script>
+</body>
+</html>
