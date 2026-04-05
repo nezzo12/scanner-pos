@@ -534,12 +534,10 @@ function onLoginSuccess(){
   document.getElementById('adminOnlyMsg').style.display=isAdmin?'none':'block';
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
-  // Guardar sesión con expiración de 8 horas
-  localStorage.setItem('pos_user', JSON.stringify({
-    user: currentUser,
-    expires: Date.now() + 8*60*60*1000
-  }));
+  localStorage.setItem('pos_user',JSON.stringify({user:currentUser,expires:Date.now()+8*60*60*1000}));
   showToast('Bienvenido, '+currentUser.name+' 👋','success');
+  // Siempre resetear y verificar timestamp al entrar
+  dataLoaded=false; productData=[];
   cargarProductos();
 }
 
@@ -648,62 +646,56 @@ function closeDetail(){
 //  PRODUCT DATA
 // ═══════════════════════════════════════════
 function cargarProductos(){
-  if(dataLoaded)return;
+  dataLoaded=false; productData=[];
   document.getElementById('loadingDiv').style.display='block';
   document.getElementById('searchMeta').textContent='Verificando actualización...';
 
-  // Forzar descarga fresca del config sin caché
-  var configUrl=URLS.config+'&nocache='+Date.now();
+  var configUrl=URLS.config+'&t='+Date.now();
   var xhr=new XMLHttpRequest();
   xhr.open('GET',configUrl,true);
-  xhr.setRequestHeader('Cache-Control','no-cache, no-store, must-revalidate');
-  xhr.setRequestHeader('Pragma','no-cache');
   xhr.timeout=10000;
   xhr.onload=function(){
     var tsSheets='';
-    if(xhr.status===200 && xhr.responseText){
+    if(xhr.status===200&&xhr.responseText){
       var lines=xhr.responseText.split('\n');
       if(lines.length>0){
         var cols=lines[0].split(',');
         tsSheets=(cols[1]||'').replace(/["\r]/g,'').trim();
       }
-      // Leer mensaje banner también
       var banner=document.getElementById('mensajeBanner');
-      if(banner && lines.length>1){
+      if(banner&&lines.length>1){
         var cols2=lines[1].split(',');
         var msg=(cols2[1]||'').replace(/["\r]/g,'').trim();
-        if(msg){ banner.textContent=msg; if(!isScanning) banner.style.display='block'; }
+        if(msg){banner.textContent=msg;if(!isScanning)banner.style.display='block';}
         else banner.style.display='none';
       }
     }
     var tsLocal=localStorage.getItem('pos_last_update')||'';
     var cached=localStorage.getItem('pos_productos');
 
-    if(cached && tsSheets && tsSheets===tsLocal){
+    if(tsSheets&&tsSheets===tsLocal&&cached){
       try{
         var arr=JSON.parse(cached);
-        if(arr && arr.length>0){
-          productData=arr; dataLoaded=true;
+        if(arr&&arr.length>0){
+          productData=arr;dataLoaded=true;
           document.getElementById('loadingDiv').style.display='none';
           document.getElementById('statusDot').className='status-dot connected';
           document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
           var el=document.getElementById('searchTimestamp');
-          if(el && tsSheets) el.textContent='Última actualización: '+tsSheets;
+          if(el&&tsSheets)el.textContent='Última actualización: '+tsSheets;
           restaurarDetalle();
           return;
         }
-      }catch(e){ localStorage.removeItem('pos_productos'); }
+      }catch(e){localStorage.removeItem('pos_productos');}
     }
 
-    // Timestamps diferentes o sin caché → descargar base fresca
-    if(tsSheets){
-      localStorage.removeItem('pos_productos');
-      localStorage.setItem('pos_last_update',tsSheets);
-    }
-    descargarProductos();
+    // Diferente → limpiar y descargar con URL única (fuerza Chrome a no cachear)
+    localStorage.removeItem('pos_productos');
+    if(tsSheets)localStorage.setItem('pos_last_update',tsSheets);
+    var versionada=URLS.products+'&v='+encodeURIComponent(tsSheets||Date.now());
+    descargarProductos(versionada);
   };
   xhr.onerror=xhr.ontimeout=function(){
-    // Sin red → usar caché
     var cached=localStorage.getItem('pos_productos');
     if(cached){
       try{
@@ -713,22 +705,20 @@ function cargarProductos(){
           document.getElementById('loadingDiv').style.display='none';
           document.getElementById('statusDot').className='status-dot connected';
           document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
-          actualizarTimestamp();
-          restaurarDetalle();
-          return;
+          actualizarTimestamp();restaurarDetalle();return;
         }
       }catch(e){}
     }
-    descargarProductos();
+    descargarProductos(URLS.products);
   };
   xhr.send();
 }
 
-function descargarProductos(){
+function descargarProductos(url){
   document.getElementById('loadingDiv').style.display='block';
-  document.getElementById('searchMeta').textContent='Cargando base de datos...';
-  xhrGet(URLS.products,parsearProductos,function(){
-    xhrGet('https://corsproxy.io/?'+encodeURIComponent(URLS.products),parsearProductos,onProductError);
+  document.getElementById('searchMeta').textContent='Descargando base de datos...';
+  xhrGet(url,parsearProductos,function(){
+    xhrGet('https://corsproxy.io/?'+encodeURIComponent(url),parsearProductos,onProductError);
   });
 }
 function parsearProductos(csv){
