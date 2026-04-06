@@ -450,7 +450,7 @@ window.addEventListener('DOMContentLoaded', function() {
     try{
       var s=JSON.parse(saved);
       if(s.expires && Date.now() < s.expires){
-        currentUser=s.user; onLoginSuccess();
+        currentUser=s.user; onLoginSuccess(true); // true = es restauración
       } else {
         localStorage.removeItem('pos_user');
       }
@@ -526,7 +526,7 @@ function startBlockCountdown(){
 }
 function updateDots(){for(var i=1;i<=3;i++){var d=document.getElementById('dot'+i);if(d)d.className='attempt-dot'+(i<=failedAttempts?' used':'');}}
 
-function onLoginSuccess(){
+function onLoginSuccess(esRestauracion){
   document.getElementById('userAvatar').textContent=currentUser.name.charAt(0).toUpperCase();
   document.getElementById('userNameChip').textContent=currentUser.name;
   var isAdmin=currentUser.role==='admin';
@@ -535,9 +535,13 @@ function onLoginSuccess(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('mainApp').style.display='block';
   localStorage.setItem('pos_user',JSON.stringify({user:currentUser,expires:Date.now()+8*60*60*1000}));
-  showToast('Bienvenido, '+currentUser.name+' 👋','success');
-  // Siempre resetear y verificar timestamp al entrar
-  dataLoaded=false; productData=[];
+  if(!esRestauracion){
+    showToast('Bienvenido, '+currentUser.name+' 👋','success');
+  }
+  // Solo resetear datos si es login fresco, no restauración
+  if(!esRestauracion){
+    dataLoaded=false; productData=[];
+  }
   cargarProductos();
 }
 
@@ -943,13 +947,15 @@ function startScanner(){
       stopScanner();ejecutarBusqueda();
       showToast('📷 Código escaneado','success');
     },function(){}
-  ).then(function(){
-    // Mostrar área solo cuando la cámara ya está activa
-    document.getElementById('scannerArea').style.display='block';
-  }).catch(function(){
+  ).catch(function(){
     document.getElementById('scanToggleBtn').textContent='📷';
+    isScanning=false;
     showToast('No se pudo acceder a la cámara','error');
   });
+  // Mostrar área tras 800ms — cuando la cámara ya está iniciando
+  setTimeout(function(){
+    if(isScanning) document.getElementById('scannerArea').style.display='block';
+  }, 800);
   isScanning=true;
 }
 function stopScanner(){
