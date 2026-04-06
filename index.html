@@ -432,9 +432,9 @@ window.addEventListener('DOMContentLoaded', function() {
   on('syncNowBtn','touchend',function(e){e.preventDefault();sincronizarPendientes();});
   on('syncNowBtn','click',sincronizarPendientes);
 
-  // Restaurar detalle si se minimizó con producto abierto
+  // Al volver de minimizar: solo restaurar detalle si estaba abierto
   document.addEventListener('visibilitychange', function(){
-    if(document.visibilityState==='visible'){
+    if(document.visibilityState==='visible' && currentUser){
       var screen=sessionStorage.getItem('pos_screen');
       var idx=sessionStorage.getItem('pos_detail_idx');
       if(screen==='detail' && idx!==null && productData.length>0){
@@ -646,10 +646,56 @@ function closeDetail(){
 //  PRODUCT DATA
 // ═══════════════════════════════════════════
 function cargarProductos(){
-  dataLoaded=false; productData=[];
+  // Si ya hay datos en memoria, solo verificar timestamp en background
+  // sin mostrar "cargando" ni resetear productData
+  if(dataLoaded && productData.length>0){
+    verificarTimestampBackground();
+    return;
+  }
+
+  // Primera carga — verificar timestamp y cargar
   document.getElementById('loadingDiv').style.display='block';
   document.getElementById('searchMeta').textContent='Verificando actualización...';
+  _verificarYCargar();
+}
 
+function verificarTimestampBackground(){
+  // Verificar silenciosamente si hay actualización sin interrumpir al usuario
+  var configUrl=URLS.config+'&t='+Date.now();
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET',configUrl,true);
+  xhr.timeout=10000;
+  xhr.onload=function(){
+    if(xhr.status!==200||!xhr.responseText)return;
+    var lines=xhr.responseText.split('\n');
+    var tsSheets='';
+    if(lines.length>0){
+      var cols=lines[0].split(',');
+      tsSheets=(cols[1]||'').replace(/["\r]/g,'').trim();
+    }
+    // Leer banner
+    var banner=document.getElementById('mensajeBanner');
+    if(banner&&lines.length>1){
+      var cols2=lines[1].split(',');
+      var msg=(cols2[1]||'').replace(/["\r]/g,'').trim();
+      if(msg){banner.textContent=msg;if(!isScanning)banner.style.display='block';}
+      else banner.style.display='none';
+    }
+    var tsLocal=localStorage.getItem('pos_last_update')||'';
+    if(tsSheets && tsSheets!==tsLocal){
+      // Hay actualización — recargar sin interrumpir visualmente
+      localStorage.removeItem('pos_productos');
+      localStorage.setItem('pos_last_update',tsSheets);
+      dataLoaded=false; productData=[];
+      var versionada=URLS.products+'&v='+encodeURIComponent(tsSheets);
+      descargarProductos(versionada);
+    }
+  };
+  xhr.onerror=xhr.ontimeout=function(){};
+  xhr.send();
+}
+
+function _verificarYCargar(){
   var configUrl=URLS.config+'&t='+Date.now();
   var xhr=new XMLHttpRequest();
   xhr.open('GET',configUrl,true);
@@ -689,11 +735,10 @@ function cargarProductos(){
       }catch(e){localStorage.removeItem('pos_productos');}
     }
 
-    // Diferente → limpiar y descargar con URL única (fuerza Chrome a no cachear)
     localStorage.removeItem('pos_productos');
     if(tsSheets)localStorage.setItem('pos_last_update',tsSheets);
-    var versionada=URLS.products+'&v='+encodeURIComponent(tsSheets||Date.now());
-    descargarProductos(versionada);
+    var url=URLS.products+'&v='+encodeURIComponent(tsSheets||Date.now());
+    descargarProductos(url);
   };
   xhr.onerror=xhr.ontimeout=function(){
     var cached=localStorage.getItem('pos_productos');
@@ -865,7 +910,7 @@ function ejecutarBusqueda(){
     el.addEventListener('touchstart',function(e){touchStartY=e.touches[0].clientY;},{passive:true});
     el.addEventListener('touchend',function(e){
       var dy=Math.abs(e.changedTouches[0].clientY-touchStartY);
-      if(dy<8){e.preventDefault();fn();}
+      if(dy<15){e.preventDefault();fn();}
     });
     el.addEventListener('click',fn);
   });
@@ -876,7 +921,6 @@ function ejecutarBusqueda(){
 // ═══════════════════════════════════════════
 function toggleScanner(){isScanning?stopScanner():startScanner();}
 function startScanner(){
-  document.getElementById('scannerArea').style.display='block';
   document.getElementById('scanToggleBtn').textContent='✕';
   document.getElementById('searchMeta').style.display='none';
   document.getElementById('searchTimestamp').style.display='none';
@@ -884,34 +928,28 @@ function startScanner(){
   html5Scanner=new Html5Qrcode("reader");
   html5Scanner.start(
     {facingMode:"environment"},
-    {
-      fps: 15,
-      qrbox: {width:320, height:150},
-      aspectRatio: 1.7,
-      disableFlip: true,
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.ITF,
-        Html5QrcodeSupportedFormats.QR_CODE
-      ]
-    },
+    {fps:15,qrbox:{width:320,height:150},aspectRatio:1.7,disableFlip:true,
+     formatsToSupport:[
+       Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
+       Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,
+       Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,
+       Html5QrcodeSupportedFormats.ITF,Html5QrcodeSupportedFormats.QR_CODE
+     ]},
     function(decoded){
       if(scanCooldown)return;
-      scanCooldown=true;
-      setTimeout(function(){scanCooldown=false;},2000);
+      scanCooldown=true;setTimeout(function(){scanCooldown=false;},2000);
       document.getElementById('searchInput').value=decoded;
-      var clr=document.getElementById('clearSearchBtn');
-      if(clr)clr.style.display='block';
-      stopScanner();
-      ejecutarBusqueda();
+      var clr=document.getElementById('clearSearchBtn');if(clr)clr.style.display='block';
+      stopScanner();ejecutarBusqueda();
       showToast('📷 Código escaneado','success');
     },function(){}
-  ).catch(function(){showToast('No se pudo acceder a la cámara','error');});
+  ).then(function(){
+    // Mostrar área solo cuando la cámara ya está activa
+    document.getElementById('scannerArea').style.display='block';
+  }).catch(function(){
+    document.getElementById('scanToggleBtn').textContent='📷';
+    showToast('No se pudo acceder a la cámara','error');
+  });
   isScanning=true;
 }
 function stopScanner(){
