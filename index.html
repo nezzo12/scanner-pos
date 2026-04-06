@@ -650,16 +650,33 @@ function closeDetail(){
 //  PRODUCT DATA
 // ═══════════════════════════════════════════
 function cargarProductos(){
-  // Si ya hay datos en memoria, solo verificar timestamp en background
-  // sin mostrar "cargando" ni resetear productData
-  if(dataLoaded && productData.length>0){
-    verificarTimestampBackground();
-    return;
+  // Verificar si ya hay datos válidos en caché local
+  // y el timestamp coincide — si es así, cargar sin mostrar spinner
+  var tsLocal=localStorage.getItem('pos_last_update')||'';
+  var cached=localStorage.getItem('pos_productos');
+
+  if(cached && tsLocal){
+    try{
+      var arr=JSON.parse(cached);
+      if(arr&&arr.length>0){
+        // Cargar caché inmediatamente sin spinner
+        productData=arr; dataLoaded=true;
+        document.getElementById('loadingDiv').style.display='none';
+        document.getElementById('statusDot').className='status-dot connected';
+        document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
+        var el=document.getElementById('searchTimestamp');
+        if(el&&tsLocal)el.textContent='Última actualización: '+tsLocal;
+        restaurarDetalle();
+        // Verificar actualización en background sin interrumpir
+        verificarTimestampBackground();
+        return;
+      }
+    }catch(e){localStorage.removeItem('pos_productos');}
   }
 
-  // Primera carga — verificar timestamp y cargar
+  // Sin caché — descargar
   document.getElementById('loadingDiv').style.display='block';
-  document.getElementById('searchMeta').textContent='Verificando actualización...';
+  document.getElementById('searchMeta').textContent='Cargando base de datos...';
   _verificarYCargar();
 }
 
@@ -929,10 +946,12 @@ function startScanner(){
   document.getElementById('searchMeta').style.display='none';
   document.getElementById('searchTimestamp').style.display='none';
   var b=document.getElementById('mensajeBanner');if(b)b.style.display='none';
+  // Mostrar área inmediatamente pero con fondo negro hasta que cargue video
+  document.getElementById('scannerArea').style.display='block';
   html5Scanner=new Html5Qrcode("reader");
   html5Scanner.start(
     {facingMode:"environment"},
-    {fps:15,qrbox:{width:320,height:150},aspectRatio:1.7,disableFlip:true,
+    {fps:15,qrbox:{width:300,height:140},aspectRatio:1.7,disableFlip:true,
      formatsToSupport:[
        Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
        Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,
@@ -948,14 +967,11 @@ function startScanner(){
       showToast('📷 Código escaneado','success');
     },function(){}
   ).catch(function(){
+    document.getElementById('scannerArea').style.display='none';
     document.getElementById('scanToggleBtn').textContent='📷';
     isScanning=false;
     showToast('No se pudo acceder a la cámara','error');
   });
-  // Mostrar área tras 800ms — cuando la cámara ya está iniciando
-  setTimeout(function(){
-    if(isScanning) document.getElementById('scannerArea').style.display='block';
-  }, 800);
   isScanning=true;
 }
 function stopScanner(){
