@@ -841,7 +841,6 @@ function onSearchInput(){
   var val=document.getElementById('searchInput').value;
   var clearBtn=document.getElementById('clearSearchBtn');
   if(clearBtn) clearBtn.style.display=val?'block':'none';
-  // Ocultar meta mientras escribe
   var meta=document.getElementById('searchMeta');
   var ts=document.getElementById('searchTimestamp');
   if(val){
@@ -881,20 +880,35 @@ function ejecutarBusqueda(){
     if(banner&&banner.textContent)banner.style.display='block';
     return;
   }
-  // Con búsqueda activa — ocultar timestamp y banner siempre
   if(ts)ts.style.display='none';
   var banner=document.getElementById('mensajeBanner');
   if(banner)banner.style.display='none';
   meta.style.display='block';
   if(!dataLoaded){meta.textContent='Cargando datos, espera un momento...';return;}
+
+  // ── BÚSQUEDA INTELIGENTE ──────────────────────────────────
+  // Solo números → buscar por item y code
+  // Solo letras  → buscar por descripción y namedepto
+  // Mixto        → buscar por descripción, namedepto y dpto
+  var soloNumeros=/^\d+$/.test(q);
+  var soloLetras=/^[a-záéíóúüñ\s]+$/i.test(q);
+
   var results=productData.filter(function(row){
-    return (row[C.code]||'').toLowerCase().indexOf(q)>=0||
-           (row[C.item]||'').toLowerCase().indexOf(q)>=0||
-           (row[C.desc]||'').toLowerCase().indexOf(q)>=0||
-           (row[C.dpto]||'').toLowerCase().indexOf(q)>=0||
-           (row[C.namedepto]||'').toLowerCase().indexOf(q)>=0||
-           (row[C.name]||'').toLowerCase().indexOf(q)>=0;
+    if(soloNumeros){
+      return (row[C.item]||'').toLowerCase().indexOf(q)>=0||
+             (row[C.code]||'').toLowerCase().indexOf(q)>=0;
+    } else if(soloLetras){
+      return (row[C.desc]||'').toLowerCase().indexOf(q)>=0||
+             (row[C.namedepto]||'').toLowerCase().indexOf(q)>=0;
+    } else {
+      return (row[C.desc]||'').toLowerCase().indexOf(q)>=0||
+             (row[C.namedepto]||'').toLowerCase().indexOf(q)>=0||
+             (row[C.dpto]||'').toLowerCase().indexOf(q)>=0||
+             (row[C.item]||'').toLowerCase().indexOf(q)>=0||
+             (row[C.code]||'').toLowerCase().indexOf(q)>=0;
+    }
   });
+
   meta.textContent=results.length+' resultado'+(results.length===1?'':'s')+' para "'+q+'"';
   if(!results.length){
     list.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-text">Sin resultados para "'+q+'"</div></div>';return;
@@ -905,8 +919,6 @@ function ejecutarBusqueda(){
     var item=(row[C.item]||'').replace(/"/g,'').trim();
     var price=(row[C.price]||'').replace(/"/g,'').trim();
     var as400=(row[C.as400]||'').replace(/"/g,'').trim();
-    var ndpto=(row[C.namedepto]||'').replace(/"/g,'').trim();
-    var code=(row[C.code]||'').replace(/"/g,'').trim();
     var priceFmt='';
     if(price){var n=parseFloat(price.replace(/[$,]/g,''));priceFmt=isNaN(n)?price:'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
     var realIdx=productData.indexOf(results[idx]);
@@ -925,16 +937,28 @@ function ejecutarBusqueda(){
   if(results.length>60){
     list.innerHTML+='<div class="empty-state" style="padding:16px"><div class="empty-text">Mostrando 60 de '+results.length+' resultados.<br>Escribe más para afinar.</div></div>';
   }
+
+  // ── EVENTOS TOUCH en resultados ───────────────────────────
+  // Umbral de 25px para distinguir scroll de tap
   list.querySelectorAll('.result-row').forEach(function(el){
     var fn=function(){var i=parseInt(el.getAttribute('data-idx'));openDetail(productData[i]);};
-    var touchStartY=0;
-    el.addEventListener('touchstart',function(e){touchStartY=e.touches[0].clientY;},{passive:true});
+    var touchStartY=0, touchStartX=0;
+    el.addEventListener('touchstart',function(e){
+      touchStartY=e.touches[0].clientY;
+      touchStartX=e.touches[0].clientX;
+    },{passive:true});
     el.addEventListener('touchend',function(e){
       var dy=Math.abs(e.changedTouches[0].clientY-touchStartY);
-      if(dy<15){e.preventDefault();fn();}
+      var dx=Math.abs(e.changedTouches[0].clientX-touchStartX);
+      if(dy<25&&dx<25){e.preventDefault();fn();}
     });
     el.addEventListener('click',fn);
   });
+
+  // ── OCULTAR TECLADO al hacer scroll en lista ──────────────
+  list.addEventListener('touchstart',function(){
+    document.getElementById('searchInput').blur();
+  },{passive:true,once:false});
 }
 
 // ═══════════════════════════════════════════
@@ -942,6 +966,8 @@ function ejecutarBusqueda(){
 // ═══════════════════════════════════════════
 function toggleScanner(){isScanning?stopScanner():startScanner();}
 function startScanner(){
+  // Ocultar teclado
+  document.getElementById('searchInput').blur();
   document.getElementById('scanToggleBtn').textContent='✕';
   document.getElementById('searchMeta').style.display='none';
   document.getElementById('searchTimestamp').style.display='none';
@@ -981,6 +1007,8 @@ function stopScanner(){
   document.getElementById('searchMeta').style.display='block';
   document.getElementById('searchTimestamp').style.display='block';
   var b=document.getElementById('mensajeBanner');if(b&&b.textContent)b.style.display='block';
+  // Mostrar teclado al cerrar scanner
+  setTimeout(function(){ document.getElementById('searchInput').focus(); }, 100);
 }
 function toggleRegScanner(){isRegScanning?stopRegScanner():startRegScanner();}
 function startRegScanner(){
