@@ -969,8 +969,11 @@ function ejecutarBusqueda(){
 // ═══════════════════════════════════════════
 function toggleScanner(){isScanning?stopScanner():startScanner();}
 function startScanner(){
-  // Ocultar teclado
+  // Limpiar búsqueda y resultados
+  document.getElementById('searchInput').value='';
   document.getElementById('searchInput').blur();
+  document.getElementById('resultsList').innerHTML='';
+  document.getElementById('clearSearchBtn').style.display='none';
   document.getElementById('scanToggleBtn').textContent='✕';
   document.getElementById('searchMeta').style.display='none';
   document.getElementById('searchTimestamp').style.display='none';
