@@ -393,6 +393,9 @@ window.addEventListener('DOMContentLoaded', function() {
   on('scanToggleBtn','touchend',function(e){e.preventDefault();toggleScanner();});
   on('scanToggleBtn','click',toggleScanner);
   document.getElementById('searchInput').addEventListener('input',onSearchInput);
+  document.getElementById('searchInput').addEventListener('focus',function(){
+    if(isScanning) stopScanner();
+  });
 
   on('backBtn','touchend',function(e){e.preventDefault();closeDetail();});
   on('backBtn','click',closeDetail);
@@ -1007,8 +1010,6 @@ function stopScanner(){
   document.getElementById('searchMeta').style.display='block';
   document.getElementById('searchTimestamp').style.display='block';
   var b=document.getElementById('mensajeBanner');if(b&&b.textContent)b.style.display='block';
-  // Mostrar teclado al cerrar scanner
-  setTimeout(function(){ document.getElementById('searchInput').focus(); }, 100);
 }
 function toggleRegScanner(){isRegScanning?stopRegScanner():startRegScanner();}
 function startRegScanner(){
