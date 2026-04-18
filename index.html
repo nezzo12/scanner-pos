@@ -653,97 +653,39 @@ function closeDetail(){
 //  PRODUCT DATA
 // ═══════════════════════════════════════════
 function cargarProductos(){
-  // Verificar si ya hay datos válidos en caché local
-  // y el timestamp coincide — si es así, cargar sin mostrar spinner
   var tsLocal=localStorage.getItem('pos_last_update')||'';
   var cached=localStorage.getItem('pos_productos');
 
-  if(cached && tsLocal){
-    try{
-      var arr=JSON.parse(cached);
-      if(arr&&arr.length>0){
-        // Cargar caché inmediatamente sin spinner
-        productData=arr; dataLoaded=true;
-        document.getElementById('loadingDiv').style.display='none';
-        document.getElementById('statusDot').className='status-dot connected';
-        document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
-        var el=document.getElementById('searchTimestamp');
-        if(el&&tsLocal)el.textContent='Última actualización: '+tsLocal;
-        restaurarDetalle();
-        // Verificar actualización en background sin interrumpir
-        verificarTimestampBackground();
-        return;
-      }
-    }catch(e){localStorage.removeItem('pos_productos');}
-  }
-
-  // Sin caché — descargar
-  document.getElementById('loadingDiv').style.display='block';
-  document.getElementById('searchMeta').textContent='Cargando base de datos...';
-  _verificarYCargar();
-}
-
-function verificarTimestampBackground(){
-  // Verificar silenciosamente si hay actualización sin interrumpir al usuario
-  var configUrl=URLS.config+'&t='+Date.now();
+  // Siempre verificar timestamp de Sheets primero
+  var configUrl=URLS.config+'&t='+Date.now()+'&r='+Math.random();
   var xhr=new XMLHttpRequest();
   xhr.open('GET',configUrl,true);
-  xhr.timeout=10000;
+  xhr.timeout=8000;
   xhr.onload=function(){
-    if(xhr.status!==200||!xhr.responseText)return;
-    var lines=xhr.responseText.split('\n');
-    var tsSheets='';
-    if(lines.length>0){
-      var cols=lines[0].split(',');
-      tsSheets=(cols[1]||'').replace(/["\r]/g,'').trim();
-    }
-    // Leer banner
-    var banner=document.getElementById('mensajeBanner');
-    if(banner&&lines.length>1){
-      var cols2=lines[1].split(',');
-      var msg=(cols2[1]||'').replace(/["\r]/g,'').trim();
-      if(msg){banner.textContent=msg;if(!isScanning)banner.style.display='block';}
-      else banner.style.display='none';
-    }
-    var tsLocal=localStorage.getItem('pos_last_update')||'';
-    if(tsSheets && tsSheets!==tsLocal){
-      // Hay actualización — recargar sin interrumpir visualmente
-      localStorage.removeItem('pos_productos');
-      localStorage.setItem('pos_last_update',tsSheets);
-      dataLoaded=false; productData=[];
-      var versionada=URLS.products+'&v='+encodeURIComponent(tsSheets);
-      descargarProductos(versionada);
-    }
-  };
-  xhr.onerror=xhr.ontimeout=function(){};
-  xhr.send();
-}
-
-function _verificarYCargar(){
-  var configUrl=URLS.config+'&t='+Date.now();
-  var xhr=new XMLHttpRequest();
-  xhr.open('GET',configUrl,true);
-  xhr.timeout=10000;
-  xhr.onload=function(){
-    var tsSheets='';
+    var tsSheets='', msg='';
     if(xhr.status===200&&xhr.responseText){
       var lines=xhr.responseText.split('\n');
       if(lines.length>0){
-        var cols=lines[0].split(',');
-        tsSheets=(cols[1]||'').replace(/["\r]/g,'').trim();
+        var c=lines[0].split(',');
+        tsSheets=(c[1]||'').replace(/["\r]/g,'').trim();
       }
-      var banner=document.getElementById('mensajeBanner');
-      if(banner&&lines.length>1){
-        var cols2=lines[1].split(',');
-        var msg=(cols2[1]||'').replace(/["\r]/g,'').trim();
-        if(msg){banner.textContent=msg;if(!isScanning)banner.style.display='block';}
-        else banner.style.display='none';
+      if(lines.length>1){
+        var c2=lines[1].split(',');
+        msg=(c2[1]||'').replace(/["\r]/g,'').trim();
       }
     }
-    var tsLocal=localStorage.getItem('pos_last_update')||'';
-    var cached=localStorage.getItem('pos_productos');
+    // Actualizar banner
+    var banner=document.getElementById('mensajeBanner');
+    if(banner){
+      if(msg){banner.textContent=msg;if(!isScanning)banner.style.display='block';}
+      else banner.style.display='none';
+    }
+    // Actualizar timestamp en pantalla
+    var el=document.getElementById('searchTimestamp');
+    if(el&&tsSheets)el.textContent='Última actualización: '+tsSheets;
 
-    if(tsSheets&&tsSheets===tsLocal&&cached){
+    if(tsSheets && tsSheets===tsLocal && cached){
+      // Caché válido — usar sin descargar
       try{
         var arr=JSON.parse(cached);
         if(arr&&arr.length>0){
@@ -751,21 +693,23 @@ function _verificarYCargar(){
           document.getElementById('loadingDiv').style.display='none';
           document.getElementById('statusDot').className='status-dot connected';
           document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
-          var el=document.getElementById('searchTimestamp');
-          if(el&&tsSheets)el.textContent='Última actualización: '+tsSheets;
           restaurarDetalle();
           return;
         }
       }catch(e){localStorage.removeItem('pos_productos');}
     }
 
+    // Caché desactualizado o inválido — descargar base nueva
     localStorage.removeItem('pos_productos');
-    if(tsSheets)localStorage.setItem('pos_last_update',tsSheets);
-    var url=URLS.products+'&v='+encodeURIComponent(tsSheets||Date.now());
+    if(tsSheets) localStorage.setItem('pos_last_update',tsSheets);
+    dataLoaded=false; productData=[];
+    document.getElementById('loadingDiv').style.display='block';
+    document.getElementById('searchMeta').textContent='Descargando base actualizada...';
+    var url=URLS.products+'&v='+encodeURIComponent(tsSheets||Date.now())+'&r='+Math.random();
     descargarProductos(url);
   };
   xhr.onerror=xhr.ontimeout=function(){
-    var cached=localStorage.getItem('pos_productos');
+    // Sin red — usar caché si existe
     if(cached){
       try{
         var arr=JSON.parse(cached);
@@ -774,12 +718,35 @@ function _verificarYCargar(){
           document.getElementById('loadingDiv').style.display='none';
           document.getElementById('statusDot').className='status-dot connected';
           document.getElementById('searchMeta').textContent=productData.length+' productos · Escribe para buscar';
-          actualizarTimestamp();restaurarDetalle();return;
+          var el2=document.getElementById('searchTimestamp');
+          if(el2&&tsLocal)el2.textContent='Última actualización: '+tsLocal;
+          restaurarDetalle();
+          return;
         }
       }catch(e){}
     }
+    document.getElementById('loadingDiv').style.display='block';
+    document.getElementById('searchMeta').textContent='Descargando base de datos...';
     descargarProductos(URLS.products);
   };
+  // Mostrar caché inmediatamente mientras verifica (si existe)
+  if(cached&&tsLocal){
+    try{
+      var arr2=JSON.parse(cached);
+      if(arr2&&arr2.length>0){
+        productData=arr2;dataLoaded=true;
+        document.getElementById('loadingDiv').style.display='none';
+        document.getElementById('statusDot').className='status-dot connected';
+        document.getElementById('searchMeta').textContent=arr2.length+' productos · Verificando...';
+        var el3=document.getElementById('searchTimestamp');
+        if(el3&&tsLocal)el3.textContent='Última actualización: '+tsLocal;
+        restaurarDetalle();
+      }
+    }catch(e){}
+  } else {
+    document.getElementById('loadingDiv').style.display='block';
+    document.getElementById('searchMeta').textContent='Cargando base de datos...';
+  }
   xhr.send();
 }
 
